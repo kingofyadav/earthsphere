@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/kingofyadav/dev/projects/profile/src/app/features/**)",
+      "Read(//home/kingofyadav/dev/projects/profile/src/app/core/**)",
+      "Read(//home/kingofyadav/dev/**)",
+      "Read(//home/kingofyadav/studio/**)",
+      "Read(//home/kingofyadav/**)",
+      "Bash(mkdir -p /home/kingofyadav/galaxy/archive)",
+      "Bash([ -d \"/home/kingofyadav/dev/projects/$p\" ])",
+      "Bash(mv /home/kingofyadav/dev/projects/__TRACKED_VAR__ /home/kingofyadav/galaxy/archive/__TRACKED_VAR__)"
+    ]
+  }
+}

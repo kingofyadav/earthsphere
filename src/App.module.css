@@ -1,0 +1,116 @@
+/* ── Root shell ── */
+.root {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: #02081a; /* Day: Deep atmospheric blue */
+  transition: background 0.8s ease;
+}
+
+.root[data-theme="night"] {
+  background: #000000; /* Night: Pure black */
+}
+
+.root[data-dev="true"] {
+  background: #000500;
+}
+
+/* ── 3D canvas ── */
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+/* Left / right vignette faders */
+.canvas::before,
+.canvas::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 18vw;
+  pointer-events: none;
+  z-index: 5;
+  transition: background 0.8s ease;
+}
+
+.canvas::before {
+  left: 0;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.6), transparent);
+}
+
+.canvas::after {
+  right: 0;
+  background: linear-gradient(to left, rgba(0, 0, 0, 0.6), transparent);
+}
+
+/* ── Scene overlay (glass / dark / light protection) ── */
+.sceneOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  transition: opacity var(--dur-slow) ease, backdrop-filter var(--dur-slow) ease;
+}
+
+.sceneOverlay[data-layer="glass"] {
+  background: rgba(0, 0, 5, 0.28);
+  backdrop-filter: blur(14px) saturate(130%);
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+}
+
+.sceneOverlay[data-layer="dark"] {
+  background: #000000;
+}
+
+.sceneOverlay[data-layer="light"] {
+  background: #ffffff;
+  backdrop-filter: blur(6px) brightness(1.4) saturate(80%);
+  -webkit-backdrop-filter: blur(6px) brightness(1.4) saturate(80%);
+}
+
+/* ── Surface — scrollable content zone ── */
+.surface {
+  position: fixed;
+  top: 66px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  /* thin scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
+.surface::-webkit-scrollbar        { width: 4px; }
+.surface::-webkit-scrollbar-track  { background: transparent; }
+.surface::-webkit-scrollbar-thumb  { background: rgba(255,255,255,0.12); border-radius: 99px; }
+
+/* Subtle top-edge glass gradient — readability without hiding the 3D scene */
+.surface::before {
+  content: '';
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(4, 6, 20, 0.32) 0%,
+    transparent 100%
+  );
+  display: block;
+  z-index: 1;
+}
+
+@media (max-width: 640px) {
+  .surface { top: 58px; }
+}

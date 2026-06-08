@@ -1,0 +1,284 @@
+/* ── Container ─────────────────────────────────────────────────────────────── */
+.container {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: #000;
+  color: #fff;
+  overflow: hidden;
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Left gradient — text protection */
+.container::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 58%;
+  height: 100%;
+  background: linear-gradient(to right, #000 32%, rgba(0,0,0,0.8) 55%, transparent 100%);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* ── Canvas ────────────────────────────────────────────────────────────────── */
+.canvasContainer {
+  position: absolute;
+  top: 0; right: 0;
+  width: clamp(52%, 62%, 68%);
+  height: 100%;
+  z-index: 1;
+}
+
+/* ── Header ────────────────────────────────────────────────────────────────── */
+.header {
+  position: relative;
+  z-index: 10;
+  height: clamp(56px, 5vw, 68px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 clamp(20px, 3vw, 40px);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.logoGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.planetDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.logoText {
+  font-family: 'Space Mono', monospace;
+  font-size: clamp(0.78rem, 1.1vw, 0.95rem);
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: #fff;
+}
+
+.roleBadge {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.6rem;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  border: 1px solid;
+  border-radius: 20px;
+  padding: 3px 11px;
+  white-space: nowrap;
+}
+
+/* ── Close ─────────────────────────────────────────────────────────────────── */
+.closeBtn {
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 8px;
+  color: rgba(255,255,255,0.45);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, transform 0.1s;
+}
+.closeBtn:hover  { color: #fff; background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.22); }
+.closeBtn:active { transform: scale(0.92); }
+
+/* ── Hero copy ─────────────────────────────────────────────────────────────── */
+.heroContent {
+  position: absolute;
+  top: 50%;
+  left: clamp(24px, 6vw, 100px);
+  transform: translateY(-50%);
+  z-index: 5;
+  max-width: min(480px, 43vw);
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Space Mono', monospace;
+  font-size: clamp(0.56rem, 0.68vw, 0.64rem);
+  letter-spacing: 0.18em;
+  color: rgba(255,255,255,0.35);
+  margin-bottom: clamp(14px, 2vh, 20px);
+}
+
+.eyebrowDot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Big planet name — gradient from white → planet colour */
+.planetName {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: clamp(3.2rem, 6.5vw, 7rem);
+  font-weight: 700;
+  line-height: 0.93;
+  letter-spacing: -2.5px;
+  margin: 0 0 clamp(16px, 2.2vh, 22px);
+  background: linear-gradient(135deg, #ffffff 0%, var(--pc, #fff) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.fact {
+  font-size: clamp(0.88rem, 1.1vw, 1rem);
+  line-height: 1.7;
+  color: rgba(255,255,255,0.5);
+  margin: 0 0 clamp(14px, 2vh, 20px);
+}
+
+.unlockRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: clamp(26px, 3.5vh, 38px);
+}
+
+.unlockLabel {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.57rem;
+  letter-spacing: 0.16em;
+  color: rgba(255,255,255,0.28);
+}
+
+.unlockValue {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+/* ── CTA ───────────────────────────────────────────────────────────────────── */
+.ctaRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ctaPrimary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid;
+  border-radius: 8px;
+  padding: clamp(11px, 1.2vh, 14px) clamp(18px, 2vw, 26px);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: clamp(0.82rem, 0.95vw, 0.9rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 0.15s, transform 0.1s, background 0.15s;
+}
+.ctaPrimary:hover  { filter: brightness(1.4); transform: translateY(-2px); }
+.ctaPrimary:active { transform: scale(0.96) translateY(0); filter: brightness(0.9); }
+
+.ctaSecondary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  padding: clamp(11px, 1.2vh, 14px) clamp(16px, 1.8vw, 22px);
+  background: transparent;
+  color: rgba(255,255,255,0.4);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: clamp(0.78rem, 0.88vw, 0.84rem);
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s, transform 0.1s;
+}
+.ctaSecondary:hover  { color: rgba(255,255,255,0.75); border-color: rgba(255,255,255,0.24); }
+.ctaSecondary:active { transform: scale(0.96); }
+
+.ctaApp {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  padding: clamp(11px, 1.2vh, 14px) clamp(16px, 1.8vw, 22px);
+  background: transparent;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: clamp(0.78rem, 0.88vw, 0.84rem);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  opacity: 0.85;
+  transition: opacity 0.15s, transform 0.1s, filter 0.15s;
+}
+.ctaApp:hover  { opacity: 1; filter: brightness(1.2); transform: translateY(-2px); }
+.ctaApp:active { transform: scale(0.96); }
+
+/* ── Footer stats ──────────────────────────────────────────────────────────── */
+.footer {
+  position: absolute;
+  bottom: 0; left: 0; width: 100%;
+  height: clamp(70px, 8vh, 88px);
+  display: flex;
+  align-items: center;
+  padding: 0 clamp(20px, 3vw, 40px);
+  gap: clamp(24px, 5vw, 56px);
+  border-top: 1px solid rgba(255,255,255,0.06);
+  background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+  z-index: 10;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.statValue {
+  font-family: 'Space Mono', monospace;
+  font-size: clamp(0.9rem, 1.1vw, 1.05rem);
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
+.statLabel {
+  font-family: 'Space Mono', monospace;
+  font-size: clamp(0.52rem, 0.62vw, 0.58rem);
+  font-weight: 400;
+  letter-spacing: 0.13em;
+  color: rgba(255,255,255,0.28);
+  text-transform: uppercase;
+}
+
+/* ── Responsive ────────────────────────────────────────────────────────────── */
+@media (max-width: 899px) {
+  .canvasContainer {
+    left: 0; right: unset;
+    width: 100%;
+    opacity: 0.32;
+  }
+  .container::after {
+    width: 100%;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.08), rgba(0,0,0,0.72));
+  }
+  .heroContent {
+    left: 5%;
+    top: 50%;
+    max-width: 90%;
+  }
+  .planetName { font-size: clamp(2.8rem, 9vw, 4.5rem); }
+}
+
+@media (max-width: 479px) {
+  .footer { gap: 14px; }
+  .roleBadge { display: none; }
+}

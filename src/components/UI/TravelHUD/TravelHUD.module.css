@@ -1,0 +1,167 @@
+.hud {
+  position: fixed;
+  top: calc(66px + 0.75rem);
+  right: 1.5rem;
+  min-width: 220px;
+  padding: 1rem 1.2rem;
+  background: rgba(5, 8, 20, 0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  z-index: 200;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  font-family: var(--font-mono, 'Courier New', monospace);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  animation: slideIn 0.25s ease;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0);    }
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.label {
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.35);
+  text-transform: uppercase;
+}
+
+.target {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #fff;
+  flex: 1;
+}
+
+.status {
+  font-size: 0.55rem;
+  letter-spacing: 0.15em;
+  border-radius: 0.3rem;
+  padding: 0.15rem 0.45rem;
+  text-transform: uppercase;
+  /* default / traveling */
+  color: var(--matrix-green, #00ff41);
+  background: rgba(0, 255, 65, 0.08);
+  border: 1px solid rgba(0, 255, 65, 0.2);
+}
+
+.status[data-state="arrived"] {
+  color: #ffcc88;
+  background: rgba(255, 204, 136, 0.1);
+  border-color: rgba(255, 204, 136, 0.28);
+}
+
+/* ── XYZ coords ── */
+.coords {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.coord {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.3rem;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.axis {
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.value {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #a8d8ff;
+  letter-spacing: 0.03em;
+}
+
+/* ── Distance row ── */
+.distRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.distRow .value {
+  font-size: 0.78rem;
+  color: #ffcc88;
+}
+
+/* ── Progress bar ── */
+.progressRow { display: flex; align-items: center; }
+
+.track {
+  flex: 1;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #4da6ff, #a8d8ff);
+  border-radius: 2px;
+  /* no transition — width is driven by rAF direct DOM writes */
+}
+
+/* ── Return button ── */
+.returnBtn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.5rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: var(--font-mono, 'Courier New', monospace);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s, border-color 0.2s;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.returnBtn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.returnBtn:focus-visible {
+  outline: 2px solid rgba(77, 166, 255, 0.5);
+  outline-offset: 2px;
+}
+
+/* ── Mobile ── */
+@media (max-width: 480px) {
+  .hud {
+    top: auto;
+    bottom: max(5rem, calc(env(safe-area-inset-bottom) + 4.5rem));
+    right: 1rem;
+    left: 1rem;
+    min-width: unset;
+  }
+}

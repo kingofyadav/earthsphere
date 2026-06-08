@@ -1,0 +1,62 @@
+.row {
+  position: fixed;
+  bottom: 5.8rem; /* above ThemeController bar height (64px) + gap */
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0;
+  z-index: 10;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0 1.8rem;
+  position: relative;
+}
+
+.value {
+  font-family: var(--font-primary);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.sep {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  .row { bottom: 5.2rem; }
+  .stat { padding: 0 1rem; }
+  .value { font-size: 1.15rem; }
+  .label { font-size: 0.52rem; }
+}
+
+@media (max-width: 400px) {
+  /* Hide 2 middle stats on very small screens */
+  .stat:nth-child(2),
+  .stat:nth-child(3) { display: none; }
+}

@@ -1,0 +1,73 @@
+.badge {
+  position: fixed;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  z-index: 400;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.32rem 0.75rem;
+  background: rgba(0, 8, 0, 0.88);
+  border: 1px solid rgba(0, 255, 65, 0.22);
+  border-radius: 9999px;
+  font-family: var(--font-mono);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 0 16px rgba(0, 255, 65, 0.08), 0 2px 12px rgba(0,0,0,0.5);
+  user-select: none;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #00ff41;
+  flex-shrink: 0;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: rgba(0, 255, 65, 0.6);
+}
+
+.divider {
+  width: 1px;
+  height: 10px;
+  background: rgba(0, 255, 65, 0.18);
+  flex-shrink: 0;
+}
+
+.fps {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  min-width: 1.6ch;
+  text-align: right;
+  transition: color 0.4s ease;
+}
+
+.fps[data-color="green"] { color: #00ff41; }
+.fps[data-color="amber"] { color: #ffb020; }
+.fps[data-color="red"]   { color: #ff4444; }
+
+.fpsUnit {
+  font-size: 0.55rem;
+  color: rgba(0, 255, 65, 0.4);
+  letter-spacing: 0.08em;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1;   box-shadow: 0 0 0 0 rgba(0, 255, 65, 0.4); }
+  50%       { opacity: 0.6; box-shadow: 0 0 0 4px rgba(0, 255, 65, 0);  }
+}
+
+@media (max-width: 640px) {
+  .badge {
+    bottom: 0.75rem;
+    right: 0.75rem;
+  }
+}

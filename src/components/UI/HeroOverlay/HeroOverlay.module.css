@@ -1,0 +1,169 @@
+.wrap {
+  position: fixed;
+  left: clamp(1.5rem, 5vw, 5rem);
+  top: 50%;
+  transform: translateY(-50%);
+  width: min(44%, 520px);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  /* whole area is the tap target in landing state */
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.ctas { pointer-events: auto; }
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.22em;
+  color: rgba(77, 166, 255, 0.7);
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.headline {
+  font-family: var(--font-primary);
+  font-size: clamp(1.8rem, 3.5vw, 3.2rem);
+  font-weight: 700;
+  line-height: 1.1;
+  color: #fff;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.sub {
+  font-family: var(--font-primary);
+  font-size: clamp(0.82rem, 1.1vw, 0.95rem);
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.65;
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+
+/* ── CTAs ── */
+.ctas {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.4rem;
+}
+
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 44px;
+  padding: 0 1.5rem;
+  background: #fff;
+  color: #000;
+  border: none;
+  border-radius: 9999px;
+  font-family: var(--font-primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.3s ease, color 0.3s ease;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+.btnPrimary:hover {
+  background: #111;
+  color: #fff;
+}
+
+.btnGhost {
+  display: inline-flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 1.5rem;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9999px;
+  font-family: var(--font-primary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+.btnGhost:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+/* ── Tap hint — shown on touch devices only ── */
+.hdiAccent {
+  font-family: var(--font-mono);
+  color: rgba(77, 166, 255, 0.92);
+  letter-spacing: 0.02em;
+}
+
+.signinRow {
+  font-family: var(--font-primary);
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.32);
+  margin: 0;
+  pointer-events: auto;
+}
+
+.signinLink {
+  background: none;
+  border: none;
+  color: rgba(77, 166, 255, 0.75);
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.16s;
+}
+.signinLink:hover { color: rgba(77, 166, 255, 1); }
+
+.tapHint {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.2);
+  text-transform: uppercase;
+  margin-top: 0.2rem;
+  display: none;
+}
+
+@media (hover: none) {
+  .tapHint { display: block; }
+}
+
+/* ── Mobile: full width, sits on top of scene ── */
+@media (max-width: 768px) {
+  .wrap {
+    left: 1.25rem;
+    right: 1.25rem;
+    top: auto;
+    bottom: auto;
+    transform: none;
+    /* Push below the header */
+    top: calc(56px + 2rem);
+    width: auto;
+  }
+  .headline { font-size: clamp(1.5rem, 6vw, 2rem); }
+}
+
+@media (max-width: 480px) {
+  .sub { display: none; }
+  .wrap { top: calc(56px + 1.25rem); }
+}

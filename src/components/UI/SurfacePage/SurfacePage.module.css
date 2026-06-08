@@ -1,0 +1,102 @@
+/* ── Container ─────────────────────────────────────────────────────────────── */
+.container {
+  position: fixed;
+  inset: 0;
+  z-index: 2100;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  color: #1a1a1a;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+.header {
+  height: 52px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+  background: #fafafa;
+}
+
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.42);
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 7px;
+  padding: 0.38rem 0.75rem;
+  cursor: pointer;
+  transition: color 0.14s, border-color 0.14s, background 0.14s;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.backBtn:hover {
+  color: #000;
+  border-color: rgba(0, 0, 0, 0.22);
+  background: rgba(0, 0, 0, 0.035);
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.titleIcon { color: rgba(0, 0, 0, 0.28); }
+
+.title {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.38);
+  letter-spacing: 0.02em;
+}
+
+.headerSpacer { width: 80px; }
+
+/* ── Scroll / Editor ─────────────────────────────────────────────────────────── */
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+  padding: 5rem 1.5rem 6rem;
+  background: #fff;
+}
+
+.editor {
+  width: 100%;
+  max-width: 680px;
+  min-height: 100%;
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-size: 1.1rem;
+  line-height: 1.88;
+  color: #1a1a1a;
+  outline: none;
+  caret-color: #000;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.editor:empty::before {
+  content: attr(data-placeholder);
+  color: rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  font-style: italic;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .scroll { padding: 3rem 1rem 4rem; }
+  .editor { font-size: 1rem; }
+  .headerSpacer { display: none; }
+}
