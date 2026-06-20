@@ -175,7 +175,7 @@ function inject3DLayers(map) {
         },
       }, beforeId)
     }
-  } catch (e) {
+  } catch {
     // Style not fully ready — will retry on next styledata
   }
 }
@@ -301,6 +301,7 @@ export default function EarthSurfacePage() {
   // ── GPS — initial fix + continuous watch ─────────────────────────────────────
   useEffect(() => {
     if (currentPage !== 'earth-surface') return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!navigator.geolocation) { setLocStatus('unavailable'); return }
 
     setLocStatus('requesting')
@@ -438,7 +439,7 @@ export default function EarthSurfacePage() {
     if (name === 'rain') {
       const lid = 'es-rain', sid = 'es-rain'
       if (!enabled) {
-        try { map.removeLayer(lid); map.removeSource(sid) } catch (_) {}
+        try { map.removeLayer(lid); map.removeSource(sid) } catch { /* layer/source may not exist yet */ }
         return
       }
       try {

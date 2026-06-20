@@ -77,7 +77,7 @@ export default function App() {
       <LoadingScreen />
 
       {/* Global header — hidden when any full-screen planet page is open */}
-      {currentPage !== 'earth-hero' && currentPage !== 'nation' && currentPage !== 'world' && currentPage !== 'surface' && currentPage !== 'earth-surface' && !PLANET_PAGE_NAMES.includes(currentPage) && <Header />}
+      {currentPage !== 'earth-hero' && currentPage !== 'nation' && currentPage !== 'surface' && currentPage !== 'earth-surface' && !PLANET_PAGE_NAMES.includes(currentPage) && <Header />}
 
       {/* Auth modal — mounts always, visible only when isLoginOpen */}
       <AuthModal />

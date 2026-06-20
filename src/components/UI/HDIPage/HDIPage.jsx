@@ -5,7 +5,7 @@ import {
   CheckCircle, Clock, AlertTriangle, Plus, Lock,
   RefreshCw, Users, Home, Heart, Briefcase, Link, Award,
   FileText, Copy, Check, Trash2, Download, Eye,
-  ChevronDown, ChevronUp, Rocket, MapPin, Landmark, Flag
+  ChevronDown, ChevronUp, Rocket, Flag, ExternalLink
 } from 'lucide-react'
 import { useAuthStore } from '../../../store/authStore'
 import { useEarthStore } from '../../../store/earthStore'
@@ -194,10 +194,11 @@ const tr   = (d) => ({ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: d })
    MAIN COMPONENT
 ───────────────────────────────────────── */
 export default function HDIPage() {
-  const currentPage        = useEarthStore(s => s.currentPage)
-  const setCurrentPage     = useEarthStore(s => s.setCurrentPage)
-  const setCurrentNationId = useEarthStore(s => s.setCurrentNationId)
-  const setAppStage        = useEarthStore(s => s.setAppStage)
+  const currentPage         = useEarthStore(s => s.currentPage)
+  const setCurrentPage      = useEarthStore(s => s.setCurrentPage)
+  const setCurrentNationId  = useEarthStore(s => s.setCurrentNationId)
+  const setNationReturnPage = useEarthStore(s => s.setNationReturnPage)
+  const setAppStage         = useEarthStore(s => s.setAppStage)
   const setSceneBg         = useEarthStore(s => s.setSceneBg)
   const startTravel        = useTravelStore(s => s.startTravel)
   const isLoggedIn         = useAuthStore(s => s.isLoggedIn)
@@ -224,10 +225,10 @@ export default function HDIPage() {
   const recordVisit        = useAuthStore(s => s.recordVisit)
 
   /* sync on mount for pre-existing sessions */
-  useEffect(() => { if (isLoggedIn) syncVerifications() }, [isLoggedIn])
+  useEffect(() => { if (isLoggedIn) syncVerifications() }, [isLoggedIn, syncVerifications])
 
   /* redirect if user logs out while HDI page is open */
-  useEffect(() => { if (!isLoggedIn && currentPage === 'hdi') setCurrentPage(null) }, [isLoggedIn, currentPage])
+  useEffect(() => { if (!isLoggedIn && currentPage === 'hdi') setCurrentPage(null) }, [isLoggedIn, currentPage, setCurrentPage])
 
   /* ── local UI state ── */
   const [copied,         setCopied]         = useState(false)
@@ -256,7 +257,7 @@ export default function HDIPage() {
   const myNations = useMemo(() => {
     if (!user?.hdi) return []
     return nations.filter(n => n.status === 'active' && n.citizen_hids.includes(user.hdi))
-  }, [nations, user?.hdi])
+  }, [nations, user])
 
   const trustScore    = useMemo(() => computeTrustScore(verifications, relationships, assets, recovery), [verifications, relationships, assets, recovery])
   const verifiedCount = useMemo(() => Object.values(verifications).filter(Boolean).length, [verifications])
@@ -289,6 +290,12 @@ export default function HDIPage() {
   function copyHdi() {
     navigator.clipboard?.writeText(displayHdi).catch(() => {})
     setCopied(true); setTimeout(() => setCopied(false), 1800)
+  }
+  function openProfile() {
+    window.open(
+      `http://localhost:3001/pages/login.html?from=earthsphere&hdi=${encodeURIComponent(displayHdi)}`,
+      '_blank', 'noopener,noreferrer'
+    )
   }
   function scrollTo(id) { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
 
@@ -412,6 +419,10 @@ export default function HDIPage() {
                 <button className={`${styles.copyBtn} ${copied ? styles.copyDone : ''}`} onClick={copyHdi}>
                   {copied ? <Check size={13} /> : <Copy size={13} />}
                   <span>{copied ? 'Copied!' : 'Copy'}</span>
+                </button>
+                <button className={styles.profileBtn} onClick={openProfile} type="button" title="Login to Profile site with this HDI">
+                  <ExternalLink size={13} />
+                  <span>Open Profile</span>
                 </button>
               </div>
 
@@ -1178,7 +1189,7 @@ export default function HDIPage() {
                             </span>
                           )}
                           <button className={styles.fSubmitBtn} style={{ height: '28px', padding: '0 0.75rem', fontSize: '0.75rem' }}
-                            onClick={() => { setCurrentNationId(n.id); setCurrentPage('nation') }}>
+                            onClick={() => { setNationReturnPage('hdi'); setCurrentNationId(n.id); setCurrentPage('nation') }}>
                             View
                           </button>
                         </div>

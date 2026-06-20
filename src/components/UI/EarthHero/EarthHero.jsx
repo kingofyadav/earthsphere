@@ -246,6 +246,7 @@ function AutoFitCamera() {
     const fill   = aspect >= 0.7 ? 0.47 : 0.39
     const dim    = aspect >= 0.7 ? 1 : aspect
     const dist   = (SPHERE_R * 2) / (fill * dim * 2 * Math.tan(fovRad / 2))
+    // eslint-disable-next-line react-hooks/immutability
     camera.position.z = Math.max(8.0, Math.min(17.0, dist))
   }, [size.width, size.height, camera])
   return null

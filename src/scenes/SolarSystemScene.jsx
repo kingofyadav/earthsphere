@@ -35,12 +35,15 @@ function SceneLighting() {
   const isDay = resolvedTheme === 'day'
   return (
     <>
-      <ambientLight intensity={isDay ? 0.35 : 0.08} color={isDay ? '#e8f0ff' : '#080818'} />
-      {/* Subtle fill light to ensure planets aren't silhouettes from certain angles */}
-      <directionalLight 
-        position={[10, 10, 5]} 
-        intensity={isDay ? 0.4 : 0.1} 
-        color={isDay ? '#ffffff' : '#4466ff'} 
+      {/*
+        The Sun (Sun.jsx) already provides a pointLight intensity=3.5 that illuminates
+        all planets. This ambient is ONLY a subtle tonal fill so dark sides aren't
+        pitch-black — keep it very low so it doesn't compete with the Sun's point light
+        and break the tone mapper's exposure.
+      */}
+      <ambientLight
+        intensity={isDay ? 0.10 : 0.04}
+        color={isDay ? '#c8dcff' : '#080818'}
       />
     </>
   )

@@ -11,12 +11,35 @@ export function useThemeMode() {
   const setResolvedTheme = useEarthStore((s) => s.setResolvedTheme)
 
   useEffect(() => {
-    if (themeMode === 'day') { setResolvedTheme('day'); return }
-    if (themeMode === 'night') { setResolvedTheme('night'); return }
+    function resolve() {
+      if (themeMode === 'day')   { setResolvedTheme('day');   return }
+      if (themeMode === 'night') { setResolvedTheme('night'); return }
+      // Auto: system preference takes priority over clock
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        setResolvedTheme('night'); return
+      }
+      setResolvedTheme(getTimeBasedTheme())
+    }
 
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    if (systemPrefersDark) { setResolvedTheme('night'); return }
+    resolve()
 
-    setResolvedTheme(getTimeBasedTheme())
+    if (themeMode !== 'auto') return
+
+    // Re-check on OS dark-mode toggle
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    mq.addEventListener('change', resolve)
+
+    // Re-check every minute so 6 am / 6 pm crossing works live
+    const timer = setInterval(resolve, 60_000)
+
+    // Re-check when the tab comes back to the foreground
+    const onVisible = () => { if (!document.hidden) resolve() }
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      mq.removeEventListener('change', resolve)
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [themeMode, setResolvedTheme])
 }

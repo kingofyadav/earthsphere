@@ -49,6 +49,10 @@ export const useEarthStore = create((set) => ({
   currentNationId: null,
   setCurrentNationId: (id) => set({ currentNationId: id }),
 
+  // Where to return after closing NationPanel ('world' | 'hdi' | null)
+  nationReturnPage: null,
+  setNationReturnPage: (p) => set({ nationReturnPage: p }),
+
   // Nation founder — which zone to found a nation on
   nationFounderZoneId: null,
   setNationFounderZoneId: (id) => set({ nationFounderZoneId: id }),

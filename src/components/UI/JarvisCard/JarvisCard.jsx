@@ -55,7 +55,9 @@ export default function JarvisCard() {
   const [messages, setMessages] = useState([WELCOME_MSG])
   const [input,    setInput]    = useState('')
   const [sending,  setSending]  = useState(false)
-  const msgEndRef = useRef(null)
+  const msgEndRef  = useRef(null)
+  const mountedRef = useRef(true)
+  useEffect(() => () => { mountedRef.current = false }, [])
 
   useEffect(() => {
     if (tab === 'chat') {
@@ -65,6 +67,7 @@ export default function JarvisCard() {
 
   useEffect(() => {
     if (isJarvisOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTab(jarvisTab || 'profile')
     } else {
       setInput('')
@@ -78,24 +81,28 @@ export default function JarvisCard() {
     setMessages((prev) => [...prev, { role: 'user', content: text }])
     setInput('')
     setSending(true)
+    const ctrl = new AbortController()
     try {
       const r = await fetch(CHAT_API, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ message: text, history }),
+        signal:  ctrl.signal,
       })
       const d = await r.json()
+      if (!mountedRef.current) return
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', content: d.ok ? d.reply : 'Something went wrong. Try again.' },
       ])
-    } catch {
+    } catch (err) {
+      if (!mountedRef.current || err.name === 'AbortError') return
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', content: 'Connection error. Please try again.' },
       ])
     }
-    setSending(false)
+    if (mountedRef.current) setSending(false)
   }
 
   function onKeyDown(e) {

@@ -101,6 +101,16 @@
 }
 .copyBtn:hover { background: rgba(77,166,255,0.1); border-color: rgba(77,166,255,0.28); color: rgba(77,166,255,0.9); }
 .copyDone { background: rgba(0,220,130,0.1); border-color: rgba(0,220,130,0.3); color: rgba(0,220,130,0.9); }
+.profileBtn {
+  display: inline-flex; align-items: center; gap: 0.32rem;
+  padding: 0.28rem 0.68rem;
+  background: rgba(255,103,31,0.08); border: 1px solid rgba(255,103,31,0.25);
+  border-radius: 9999px; color: rgba(255,103,31,0.7);
+  font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.07em;
+  cursor: pointer; transition: all 0.18s; outline: none; flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.profileBtn:hover { background: rgba(255,103,31,0.15); border-color: rgba(255,103,31,0.5); color: rgba(255,103,31,1); }
 
 /* Stats bar */
 .statsBar {

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Zap, Menu, X, Globe } from 'lucide-react'
+import { Zap, Menu, X, Globe, Sun, Moon } from 'lucide-react'
 import { useEarthStore } from '../../../store/earthStore'
 import { useAuthStore } from '../../../store/authStore'
 import { useTravelStore } from '../../../store/travelStore'
@@ -32,9 +32,10 @@ const BG_ICONS  = {
 
 export default function Header() {
   const resolvedTheme    = useEarthStore((s) => s.resolvedTheme)
+  const themeMode        = useEarthStore((s) => s.themeMode)
+  const setThemeMode     = useEarthStore((s) => s.setThemeMode)
   const sceneBg          = useEarthStore((s) => s.sceneBg)
   const setSceneBg       = useEarthStore((s) => s.setSceneBg)
-  const appStage         = useEarthStore((s) => s.appStage)
   const currentPage      = useEarthStore((s) => s.currentPage)
   const setCurrentPage   = useEarthStore((s) => s.setCurrentPage)
   const startTravel      = useTravelStore((s) => s.startTravel)
@@ -188,6 +189,39 @@ export default function Header() {
 
             <div className={styles.sep} />
 
+            {/* ── Theme: Auto / Day / Night ── */}
+            <div className={styles.themeGroup}>
+              <button
+                className={`${styles.themeBtn} ${themeMode === 'auto' ? styles.themeBtnActive : ''}`}
+                data-mode="auto"
+                onClick={() => setThemeMode('auto')}
+                aria-label="Auto theme" aria-pressed={themeMode === 'auto'}
+              >
+                <span className={styles.themeBtnAuto}>A</span>
+                <span>Auto</span>
+              </button>
+              <button
+                className={`${styles.themeBtn} ${themeMode === 'day' ? styles.themeBtnActive : ''}`}
+                data-mode="day"
+                onClick={() => setThemeMode('day')}
+                aria-label="Day theme" aria-pressed={themeMode === 'day'}
+              >
+                <Sun size={11} aria-hidden="true" />
+                <span>Day</span>
+              </button>
+              <button
+                className={`${styles.themeBtn} ${themeMode === 'night' ? styles.themeBtnActive : ''}`}
+                data-mode="night"
+                onClick={() => setThemeMode('night')}
+                aria-label="Night theme" aria-pressed={themeMode === 'night'}
+              >
+                <Moon size={11} aria-hidden="true" />
+                <span>Night</span>
+              </button>
+            </div>
+
+            <div className={styles.sep} />
+
             <button className={styles.authBtn} onClick={handleAuthClick}>
               {isLoggedIn ? 'Logout' : 'Login'}
             </button>
@@ -274,6 +308,28 @@ export default function Header() {
                     {BG_ICONS[sceneBg === 'glass' ? 'glass' : 'off']}
                     <span style={{ marginLeft: '0.3rem' }}>{BG_LABELS[sceneBg === 'glass' ? 'glass' : 'off']}</span>
                   </button>
+                </div>
+              </div>
+
+              {/* Theme */}
+              <div className={styles.drawerSection}>
+                <span className={styles.drawerSectionLabel}>Theme</span>
+                <div className={styles.drawerThemePills}>
+                  {[
+                    { id: 'auto',  label: 'Auto',  Icon: null },
+                    { id: 'day',   label: 'Day',   Icon: Sun  },
+                    { id: 'night', label: 'Night', Icon: Moon },
+                  ].map(({ id, label, Icon }) => (
+                    <button
+                      key={id}
+                      className={`${styles.drawerPill} ${styles.drawerThemePill} ${themeMode === id ? styles.drawerPillActive : ''}`}
+                      onClick={() => { setThemeMode(id); closeMenu() }}
+                      aria-pressed={themeMode === id}
+                    >
+                      {Icon ? <Icon size={13} /> : <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>A</span>}
+                      {label}
+                    </button>
+                  ))}
                 </div>
               </div>
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { RefreshCw, Wind, Thermometer, Droplets, Eye, Sun, Activity, Layers } from 'lucide-react'
+import { RefreshCw, Thermometer, Eye, Activity, Layers } from 'lucide-react'
 import styles from './EnvPanel.module.css'
 
 /* ── WMO weather code → label + emoji ────────────────────────────────────── */
@@ -142,6 +142,7 @@ export default function EnvPanel({ lat, lon, onOverlay, activeOverlays }) {
 
   /* Initial fetch + refresh every 10 min at current position */
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchAll(lat, lon)
     timerRef.current = setInterval(
       () => fetchAll(currentPos.current.lat, currentPos.current.lon),

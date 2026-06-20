@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  ArrowLeft, Globe, Users, Landmark, Vote, Handshake,
+  ArrowLeft, Globe, Landmark, Vote, Handshake,
   MapPin, Plus, ThumbsUp, ThumbsDown, Clock,
   CheckCircle2, XCircle, Coins, ChevronDown, ChevronUp,
   Share2, Check, Wifi, WifiOff, Wallet,
@@ -120,17 +120,21 @@ function TreasuryTab({ nation, userHdi, isCitizen, spendRPC, depositTreasury, tx
 
   /* fetch chain stats */
   useEffect(() => {
+    let alive = true
     rcGetStats()
-      .then(data => setStats(data))
-      .catch(() => setStatsErr(true))
+      .then(data => { if (alive) setStats(data) })
+      .catch(() => { if (alive) setStatsErr(true) })
+    return () => { alive = false }
   }, [])
 
   /* fetch on-chain balance when address is set */
   useEffect(() => {
     if (!rcAddress) return
+    let alive = true
     rcGetBalance(rcAddress)
-      .then(data => setOnchainBal(data.balance ?? data.confirmed ?? 0))
-      .catch(() => setOnchainBal(null))
+      .then(data => { if (alive) setOnchainBal(data.balance ?? data.confirmed ?? 0) })
+      .catch(() => { if (alive) setOnchainBal(null) })
+    return () => { alive = false }
   }, [rcAddress])
 
   async function handleCreateWallet() {
@@ -145,6 +149,9 @@ function TreasuryTab({ nation, userHdi, isCitizen, spendRPC, depositTreasury, tx
     }
   }
 
+  const doneTimerRef = useRef(null)
+  useEffect(() => () => { if (doneTimerRef.current) clearTimeout(doneTimerRef.current) }, [])
+
   function contribute() {
     const amt = Number(amount)
     if (!amt || amt <= 0) { setError('Enter a valid amount.'); return }
@@ -152,7 +159,8 @@ function TreasuryTab({ nation, userHdi, isCitizen, spendRPC, depositTreasury, tx
     spendRPC(amt)
     depositTreasury(nation.id, userHdi, amt, note.trim() || 'Contribution')
     setAmount(''); setNote(''); setError(''); setDone(true)
-    setTimeout(() => setDone(false), 2500)
+    if (doneTimerRef.current) clearTimeout(doneTimerRef.current)
+    doneTimerRef.current = setTimeout(() => setDone(false), 2500)
   }
 
   const nationTxLog = txLog.filter(t => t.nation_id === nation.id).slice(0, 20)
@@ -174,7 +182,7 @@ function TreasuryTab({ nation, userHdi, isCitizen, spendRPC, depositTreasury, tx
           }
         </h3>
         {statsErr ? (
-          <p className={styles.chainError}>Start the rupeecoin server on port 8080 to see live data.</p>
+          <p className={styles.chainError}>Start the rupeecoin server on port 9944 to see live data.</p>
         ) : stats ? (
           <div className={styles.chainStats}>
             <div className={styles.chainStat}>
@@ -249,6 +257,60 @@ function TreasuryTab({ nation, userHdi, isCitizen, spendRPC, depositTreasury, tx
   )
 }
 
+/* ─────────────────── ProposalCard ─────────────────── */
+function ProposalCard({ p, expanded, setExpanded, userHdi, isCitizen, vote }) {
+  const total  = p.votes_for.length + p.votes_against.length
+  const forPct = total ? Math.round((p.votes_for.length / total) * 100) : 0
+  const myVote = p.votes_for.includes(userHdi) ? 'for' : p.votes_against.includes(userHdi) ? 'against' : null
+  const isOpen = p.status === 'open'
+  const exp    = expanded === p.id
+
+  return (
+    <div className={`${styles.proposalCard} ${p.status !== 'open' ? styles.proposalDone : ''}`}>
+      <div className={styles.proposalHeader} onClick={() => setExpanded(exp ? null : p.id)}>
+        <div className={styles.proposalTitleRow}>
+          {p.status === 'passed'   && <CheckCircle2 size={13} className={styles.iconPassed} />}
+          {p.status === 'rejected' && <XCircle      size={13} className={styles.iconRejected} />}
+          {p.status === 'open'     && <Clock        size={13} className={styles.iconOpen} />}
+          <span className={styles.proposalTitle}>{p.title}</span>
+        </div>
+        <div className={styles.proposalMeta}>
+          <span className={styles.proposalTime}>{isOpen ? deadlineIn(p.deadline) : p.status}</span>
+          {exp ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+        </div>
+      </div>
+      {exp && (
+        <div className={styles.proposalBody}>
+          <p className={styles.proposalDesc}>{p.description}</p>
+          <div className={styles.voteBar}>
+            <div className={styles.voteBarFill} style={{ width: `${forPct}%` }} />
+          </div>
+          <div className={styles.voteStats}>
+            <span className={styles.voteFor}>{p.votes_for.length} For</span>
+            <span className={styles.voteAgainst}>{p.votes_against.length} Against</span>
+          </div>
+          {isCitizen && isOpen && (
+            <div className={styles.voteRow}>
+              <button
+                className={`${styles.btnVote} ${myVote === 'for' ? styles.btnVoteForActive : ''}`}
+                onClick={() => vote(p.id, userHdi, 'for')}
+              >
+                <ThumbsUp size={13} /> For
+              </button>
+              <button
+                className={`${styles.btnVote} ${myVote === 'against' ? styles.btnVoteAgainstActive : ''}`}
+                onClick={() => vote(p.id, userHdi, 'against')}
+              >
+                <ThumbsDown size={13} /> Against
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ─────────────────── GovernanceTab ─────────────────── */
 function GovernanceTab({ nation, proposals, userHdi, isCitizen, createProposal, vote, finalizeExpired }) {
   const [showCreate, setShowCreate] = useState(false)
@@ -268,66 +330,8 @@ function GovernanceTab({ nation, proposals, userHdi, isCitizen, createProposal, 
     if (!title.trim()) { setError('Proposal needs a title.'); return }
     if (!desc.trim())  { setError('Add a description.'); return }
     createProposal({ nation_id: nation.id, title: title.trim(), description: desc.trim(), proposer_hid: userHdi, deadline_days: days })
-    setTitle(''); setDesc(''); setError(''); setShowCreate(false)
-  }
-
-  function userVote(p) {
-    if (p.votes_for.includes(userHdi)) return 'for'
-    if (p.votes_against.includes(userHdi)) return 'against'
-    return null
-  }
-
-  function ProposalCard({ p }) {
-    const total  = p.votes_for.length + p.votes_against.length
-    const forPct = total ? Math.round((p.votes_for.length / total) * 100) : 0
-    const myVote = userVote(p)
-    const isOpen = p.status === 'open'
-    const exp    = expanded === p.id
-
-    return (
-      <div className={`${styles.proposalCard} ${p.status !== 'open' ? styles.proposalDone : ''}`}>
-        <div className={styles.proposalHeader} onClick={() => setExpanded(exp ? null : p.id)}>
-          <div className={styles.proposalTitleRow}>
-            {p.status === 'passed'   && <CheckCircle2 size={13} className={styles.iconPassed} />}
-            {p.status === 'rejected' && <XCircle      size={13} className={styles.iconRejected} />}
-            {p.status === 'open'     && <Clock        size={13} className={styles.iconOpen} />}
-            <span className={styles.proposalTitle}>{p.title}</span>
-          </div>
-          <div className={styles.proposalMeta}>
-            <span className={styles.proposalTime}>{isOpen ? deadlineIn(p.deadline) : p.status}</span>
-            {exp ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-          </div>
-        </div>
-        {exp && (
-          <div className={styles.proposalBody}>
-            <p className={styles.proposalDesc}>{p.description}</p>
-            <div className={styles.voteBar}>
-              <div className={styles.voteBarFill} style={{ width: `${forPct}%` }} />
-            </div>
-            <div className={styles.voteStats}>
-              <span className={styles.voteFor}>{p.votes_for.length} For</span>
-              <span className={styles.voteAgainst}>{p.votes_against.length} Against</span>
-            </div>
-            {isCitizen && isOpen && (
-              <div className={styles.voteRow}>
-                <button
-                  className={`${styles.btnVote} ${myVote === 'for' ? styles.btnVoteForActive : ''}`}
-                  onClick={() => vote(p.id, userHdi, 'for')}
-                >
-                  <ThumbsUp size={13} /> For
-                </button>
-                <button
-                  className={`${styles.btnVote} ${myVote === 'against' ? styles.btnVoteAgainstActive : ''}`}
-                  onClick={() => vote(p.id, userHdi, 'against')}
-                >
-                  <ThumbsDown size={13} /> Against
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    )
+    setTitle(''); setDesc(''); setError('')
+    setShowCreate(false)
   }
 
   return (
@@ -358,13 +362,13 @@ function GovernanceTab({ nation, proposals, userHdi, isCitizen, createProposal, 
       {open.length > 0 && (
         <section className={styles.section}>
           <h3 className={styles.sectionTitle}>Active</h3>
-          {open.map(p => <ProposalCard key={p.id} p={p} />)}
+          {open.map(p => <ProposalCard key={p.id} p={p} expanded={expanded} setExpanded={setExpanded} userHdi={userHdi} isCitizen={isCitizen} vote={vote} />)}
         </section>
       )}
       {finished.length > 0 && (
         <section className={styles.section}>
           <h3 className={styles.sectionTitle}>Concluded</h3>
-          {finished.map(p => <ProposalCard key={p.id} p={p} />)}
+          {finished.map(p => <ProposalCard key={p.id} p={p} expanded={expanded} setExpanded={setExpanded} userHdi={userHdi} isCitizen={isCitizen} vote={vote} />)}
         </section>
       )}
       {nationProps.length === 0 && (
@@ -528,6 +532,8 @@ export default function NationPanel() {
   const setCurrentPage     = useEarthStore(s => s.setCurrentPage)
   const currentNationId    = useEarthStore(s => s.currentNationId)
   const setCurrentNationId = useEarthStore(s => s.setCurrentNationId)
+  const nationReturnPage   = useEarthStore(s => s.nationReturnPage)
+  const setNationReturnPage = useEarthStore(s => s.setNationReturnPage)
   const user               = useAuthStore(s => s.user)
   const spendRPC           = useAuthStore(s => s.spendRPC)
   const nations            = useNationStore(s => s.nations)
@@ -569,7 +575,8 @@ export default function NationPanel() {
   const isFounder = nation ? nation.founder_hid === userHdi : false
 
   function close() {
-    setCurrentPage(null)
+    setCurrentPage(nationReturnPage ?? null)
+    setNationReturnPage(null)
     setCurrentNationId(null)
     setActiveTab('overview')
   }
