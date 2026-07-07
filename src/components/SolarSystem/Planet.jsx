@@ -5,9 +5,11 @@ import * as THREE from 'three'
 import { useEarthStore } from '../../store/earthStore'
 import { useTravelStore } from '../../store/travelStore'
 import { useAuthStore } from '../../store/authStore'
+import { initAudio, playSfx } from '../../lib/audio'
 import { registerPlanet, unregisterPlanet } from '../../travel/travelState'
 import SaturnRings from './SaturnRings'
 import { MOON } from './planetData'
+import { PAGE } from '../../lib/pages'
 import styles from './Planet.module.css'
 
 // ── Shared orbit + hover + label shell ───────────────────────────────────────
@@ -35,16 +37,15 @@ function PlanetShell({ data, children }) {
 
   function handlePlanetClick(e) {
     e.stopPropagation()
+    initAudio()
+    if (!isLoggedIn) { openLoginModal(); return }
+    playSfx('click')
     setAppStage('explore')
     setSceneBg('off')
     setCurrentPage(null)
     startTravel(data.name)
-    if (isLoggedIn) {
-      recordVisit(data.name)
-      if (data.name === 'Earth') setCurrentPage('earth-hero')
-    } else {
-      openLoginModal()
-    }
+    recordVisit(data.name)
+    if (data.name === 'Earth') setCurrentPage(PAGE.EARTH_HERO)
   }
 
   useFrame(() => {
@@ -102,7 +103,8 @@ function MoonOrbit() {
 
   function handleClick(e) {
     e.stopPropagation()
-    if (isLoggedIn) { setCurrentPage('Moon') } else { openLoginModal() }
+    initAudio()
+    if (isLoggedIn) { playSfx('click'); setCurrentPage(PAGE.MOON) } else { openLoginModal() }
   }
 
   return (

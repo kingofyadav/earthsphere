@@ -13,6 +13,7 @@ import { useTerritoryStore } from '../../../store/territoryStore'
 import { useGovernanceStore } from '../../../store/governanceStore'
 import { useRelationStore } from '../../../store/relationStore'
 import { rcGetStats, rcGetBalance, rcNewWallet } from '../../../lib/rupeecoin'
+import { PAGE } from '../../../lib/pages'
 import styles from './NationPanel.module.css'
 
 /* ─────────────────── helpers ─────────────────── */
@@ -558,7 +559,7 @@ export default function NationPanel() {
   const [activeTab, setActiveTab] = useState('overview')
   const [copied,    setCopied]    = useState(false)
 
-  const isOpen = currentPage === 'nation'
+  const isOpen = currentPage === PAGE.NATION
   const nation = nations.find(n => n.id === currentNationId) ?? null
 
   /* Step 10: sync URL when panel opens/closes */
@@ -613,10 +614,12 @@ export default function NationPanel() {
             ) : (
               <>
                 {/* Tab bar */}
-                <div className={styles.tabBar}>
+                <div className={styles.tabBar} role="tablist" aria-label="Nation sections">
                   {TABS.map(({ id, label, Icon }) => (
                     <button
                       key={id}
+                      role="tab"
+                      aria-selected={activeTab === id}
                       className={`${styles.tabBtn} ${activeTab === id ? styles.tabActive : ''}`}
                       onClick={() => setActiveTab(id)}
                     >

@@ -15,6 +15,7 @@ export default function LoadingScreen() {
           aria-label="Loading EarthSphere"
           role="status"
           aria-live="polite"
+          aria-busy="true"
         >
           <div className={styles.outerRing}>
             <div className={styles.innerRing} />

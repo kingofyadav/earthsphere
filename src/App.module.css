@@ -3,16 +3,16 @@
   width: 100%;
   height: 100%;
   position: relative;
-  background: #040f28; /* Day: visible deep-space blue */
+  background: #ffffff; /* Light: pure white */
   transition: background 1s ease;
 }
 
 .root[data-theme="night"] {
-  background: #00010a; /* Night: near-black deep space */
+  background: #000000; /* Dark: pure black */
 }
 
 .root[data-dev="true"] {
-  background: #000500;
+  background: #000000;
 }
 
 /* ── 3D canvas ── */

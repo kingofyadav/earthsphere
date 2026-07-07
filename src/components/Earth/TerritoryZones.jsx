@@ -5,6 +5,7 @@ import { useTerritoryStore } from '../../store/territoryStore'
 import { useNationStore } from '../../store/nationStore'
 import { useAuthStore } from '../../store/authStore'
 import { useEarthStore } from '../../store/earthStore'
+import { PAGE } from '../../lib/pages'
 import { latLngToVec3 } from './geoUtils'
 
 // cyan = personal zone  |  green = nation zone  |  gold = nation capital
@@ -49,7 +50,7 @@ function ZonePin({ zone, radius, nationInfo }) {
     e.stopPropagation()
     if (hasNation) {
       setCurrentNationId(nationInfo.nation.id)
-      setCurrentPage('nation')
+      setCurrentPage(PAGE.NATION)
     } else if (userHdi === zone.owner_hid) {
       setNationFounderZoneId(zone.id)
     }

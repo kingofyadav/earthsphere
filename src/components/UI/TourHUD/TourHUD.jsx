@@ -48,17 +48,10 @@ export default function TourHUD() {
 
   if (!isTouring) {
     return (
-      <>
-        <div className={styles.minimalClock}>
-          <div className={styles.clockLabel}>SYSTEM TIME // {date}</div>
-          <div className={styles.clock}>{time}</div>
-          <div className={styles.sourceLabel}>DATA SOURCE: NASA / JPL-CALTECH</div>
-        </div>
-        <button className={styles.launchBtn} onClick={startTour} aria-label="Start universe tour">
-          <span className={styles.launchIcon}>◎</span>
-          <span className={styles.launchText}>UNIVERSE TOUR</span>
-        </button>
-      </>
+      <button className={styles.launchBtn} onClick={startTour} aria-label="Start universe tour">
+        <span className={styles.launchIcon}>◎</span>
+        <span className={styles.launchText}>UNIVERSE TOUR</span>
+      </button>
     )
   }
 

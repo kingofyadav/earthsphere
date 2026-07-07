@@ -8,6 +8,7 @@ import { useEarthStore }     from '../../../store/earthStore'
 import { useAuthStore }      from '../../../store/authStore'
 import { useNationStore }    from '../../../store/nationStore'
 import { useCommunityStore } from '../../../store/communityStore'
+import { PAGE } from '../../../lib/pages'
 import styles from './WorldPage.module.css'
 
 /* ── helpers ── */
@@ -81,7 +82,7 @@ function PostComposer({ user, onPost }) {
       <textarea
         ref={textareaRef}
         className={styles.composerInput}
-        placeholder={`What's on your mind, ${user.hdi}?`}
+        placeholder={`What's on your mind, ${user.hdi ?? user.name ?? 'you'}?`}
         value={text}
         onChange={e => setText(e.target.value)}
         onKeyDown={onKeyDown}
@@ -157,7 +158,7 @@ function CommunityFeed({ user, openLogin }) {
   const deletePost = useCommunityStore(s => s.deletePost)
 
   function handlePost(content) {
-    if (!user) return
+    if (!user?.hdi) return
     addPost({ authorHdi: user.hdi, authorName: user.name ?? '', content })
   }
 
@@ -357,7 +358,7 @@ export default function WorldPage() {
   const nations             = useNationStore(s => s.nations)
   const joinNation          = useNationStore(s => s.joinNation)
   const leaveNation         = useNationStore(s => s.leaveNation)
-  const posts               = useCommunityStore(s => s.posts)
+  const postCount           = useCommunityStore(s => s.posts.length)
 
   const [mainTab, setMainTab] = useState('nations')
 
@@ -371,26 +372,28 @@ export default function WorldPage() {
   )
 
   function openNation(id) {
-    setNationReturnPage('world')
+    setNationReturnPage(PAGE.WORLD)
     setCurrentNationId(id)
-    setCurrentPage('nation')
+    setCurrentPage(PAGE.NATION)
   }
   function handleJoin(id) {
     if (!isLoggedIn) { openLoginModal(); return }
+    if (!userHdi) return
     joinNation(id, userHdi)
   }
   function handleLeave(id) {
     if (!isLoggedIn) { openLoginModal(); return }
+    if (!userHdi) return
     leaveNation(id, userHdi)
   }
   function handleFoundNation() {
     if (!isLoggedIn) { openLoginModal(); return }
-    setCurrentPage('earth-hero')
+    setCurrentPage(PAGE.EARTH_HERO)
   }
 
   return (
     <AnimatePresence>
-      {currentPage === 'world' && (
+      {currentPage === PAGE.WORLD && (
         <motion.div
           className={styles.overlay}
           initial={{ opacity: 0, x: 80 }}
@@ -443,7 +446,7 @@ export default function WorldPage() {
                   { v: activeNations.length, k: 'Nations'         },
                   { v: totalCitizens,        k: 'Citizens'        },
                   { v: fmtRPC(totalTreasury),k: 'World Treasury'  },
-                  { v: posts.length,         k: 'Community Posts' },
+                  { v: postCount,             k: 'Community Posts' },
                   ...(myNations.length > 0 ? [{ v: myNations.length, k: 'My Nations', highlight: true }] : []),
                 ].map(({ v, k, highlight }, i, arr) => (
                   <div key={k} style={{ display: 'contents' }}>
@@ -468,8 +471,8 @@ export default function WorldPage() {
                 >
                   <Icon size={11} />
                   {label}
-                  {id === 'feed' && posts.length > 0 && (
-                    <span className={styles.navBadge}>{posts.length > 99 ? '99+' : posts.length}</span>
+                  {id === 'feed' && postCount > 0 && (
+                    <span className={styles.navBadge}>{postCount > 99 ? '99+' : postCount}</span>
                   )}
                 </button>
               ))}

@@ -142,7 +142,6 @@ export default function EnvPanel({ lat, lon, onOverlay, activeOverlays }) {
 
   /* Initial fetch + refresh every 10 min at current position */
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchAll(lat, lon)
     timerRef.current = setInterval(
       () => fetchAll(currentPos.current.lat, currentPos.current.lon),

@@ -1,7 +1,8 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, devtools } from 'zustand/middleware'
 
 export const useCommunityStore = create(
+  devtools(
   persist(
     (set) => ({
       posts: [],
@@ -42,5 +43,7 @@ export const useCommunityStore = create(
       name: 'earthsphere-community',
       partialize: s => ({ posts: s.posts }),
     }
+  ),
+  { name: 'CommunityStore' }
   )
 )

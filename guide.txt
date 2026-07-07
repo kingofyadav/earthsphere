@@ -1,0 +1,119 @@
+===============================================================================
+ EARTHSPHERE — GUIDE
+ Digital World · explore the Solar System, claim Earth, build an identity
+===============================================================================
+
+Two audiences share this file: people using EarthSphere, and developers working
+on it. User walkthrough first, developer notes second.
+
+
+===============================================================================
+ PART 1 — USING EARTHSPHERE
+===============================================================================
+
+GETTING IN
+  - On first load you arrive at the landing stage over a live Solar System.
+  - Sign in via the auth modal to unlock your Human Digital Identity (HDI) and
+    anything that persists (nations, territory, profile). Once signed in you are
+    dropped straight into explore mode on refresh.
+
+MOVING AROUND
+  - The Solar System is real: planets ride true J2000 Keplerian orbits around the
+    Sun, with orbit paths, Saturn's rings, and a Milky Way backdrop.
+  - Auto-tour: let the camera fly a guided tour of the planets; the Tour HUD shows
+    where you are and lets you drop out.
+  - Light-speed travel: choose a planet to warp to. The Travel HUD tracks the
+    transit and the light-speed effect plays during the jump.
+
+EARTH, UP CLOSE
+  - Travel to Earth to open the surface view (MapLibre-backed) wrapped in
+    atmosphere and cloud shells.
+  - Territory zones highlight on hover. Click the globe to open the Claim modal
+    for the zone under your pointer.
+
+IDENTITY, NATIONS & TERRITORY
+  - HDI: build a Human Digital Identity profile that pins to the globe.
+  - Found a nation from the Nation Founder, then manage it in the Nation Panel.
+  - Claim territory zones to your nation; the world's community, governance, and
+    relations systems react to what you build.
+  - Share a nation with a direct link:  <site>/?nation=<nation-id>
+    (opens straight into that nation's page.)
+
+ECONOMY
+  - A lightweight in-world economy runs on "rupeecoin", used across claiming and
+    nation actions.
+
+COMFORT & THEMING
+  - Light / dark theme follows your system and can be toggled.
+  - Installable as a PWA (offline-aware) — "Add to home screen" / "Install app".
+  - Requires a WebGL-capable browser. If the 3D engine fails to start you'll see a
+    fallback asking you to refresh or switch browsers.
+
+
+===============================================================================
+ PART 2 — DEVELOPER NOTES
+===============================================================================
+
+RUN
+  pnpm install
+  pnpm dev            # vite dev server
+  pnpm build          # production build -> dist/
+  pnpm preview        # serve the build
+  pnpm lint           # eslint
+
+BIG PICTURE
+  - The 3D scene (scenes/SolarSystemScene.jsx) is ALWAYS mounted, behind an
+    ErrorBoundary so a WebGL crash never takes down the app.
+  - Everything else — pages, modals, HUDs — is lazy-loaded and layered on top in a
+    single Suspense boundary (see src/App.jsx).
+  - App progresses through an app-stage machine: 'landing' -> 'explore'. Logged-in
+    users are auto-restored into 'explore' on refresh.
+  - The visible page/modal is chosen from PAGE / PLANET_PAGE_NAMES in lib/pages.js;
+    some full-screen pages hide the global header.
+
+STATE (zustand, one store per concern) — src/store/
+  authStore ......... session / login state, gates HDI and persistence
+  earthStore ........ app stage, current page, theme, scene background, dev mode
+  travelStore ....... in-transit flag + target planet (drives the Travel HUD)
+  tourStore ......... auto-tour state
+  nationStore ....... nations you own / manage
+  territoryStore .... claimed zones
+  governanceStore ... governance layer
+  communityStore .... community layer
+  relationStore ..... inter-nation relations
+  src/travel/travelState.js is a FRAME-RATE mutable singleton (not a store) —
+  camera/travel values that change every frame live here to avoid React churn.
+
+DOMAIN CODE — src/lib/
+  orbitalMechanics.js  J2000 Kepler solver -> planet positions (the source of the
+                       real orbits; reused as the reference implementation for the
+                       sibling universe-explorer project)
+  hdiUtils.js .......  Human Digital Identity helpers
+  rupeecoin.js ......  in-world economy
+  syncEngine.js .....  persistence / sync; wired in via hooks/useSystemsBridge
+  pages.js ..........  page + planet-page routing constants
+  securePersistStorage.js, crypto.js, audio.js, magicSearch.js, hdiUtils.js
+
+3D COMPONENTS — src/components/
+  SolarSystem/  Planet, Sun, OrbitPath, SaturnRings, MilkyWay, AutoTourController,
+                TravelController, planetData.js
+  Earth/        Earth, Atmosphere/Clouds shells, TerritoryZones, GlobeHoverRing,
+                ProfilePin, geoUtils.js
+  Starfield/, shaders/ (atmosphere.glsl, matrix.glsl)
+
+HOOKS — src/hooks/
+  useThemeMode, useDevMode, useKeyboardShortcuts, useSystemsBridge, useDeviceType
+
+CONVENTIONS
+  - Controller components (TravelController, AutoTourController) return null and
+    drive the scene via refs / frame-rate state rather than rendering DOM.
+  - Planet data and orbital elements are data modules; keep new bodies data-driven.
+  - Heavy pages stay lazy-loaded to keep the initial bundle lean.
+
+DEEP LINKS & DEV
+  - ?nation=<id> opens a specific nation.
+  - A DevOverlay HUD (its own Suspense boundary, so it can never crash the app) and
+    useDevMode expose developer tooling in the running app.
+
+Deploys via vercel.json.
+===============================================================================

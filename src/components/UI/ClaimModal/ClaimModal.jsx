@@ -1,10 +1,23 @@
 import { useState, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X, MapPin, Globe, Flag } from 'lucide-react'
+import FocusTrap from 'focus-trap-react'
 import { useEarthStore } from '../../../store/earthStore'
 import { useAuthStore } from '../../../store/authStore'
 import { useTerritoryStore } from '../../../store/territoryStore'
 import styles from './ClaimModal.module.css'
+
+function zonesOverlap(a, b) {
+  const R = 6371
+  const dLat = (b.lat - a.lat) * Math.PI / 180
+  const dLon = (b.lng - a.lng) * Math.PI / 180
+  const sinLat = Math.sin(dLat / 2)
+  const sinLon = Math.sin(dLon / 2)
+  const c = 2 * Math.asin(Math.sqrt(
+    sinLat * sinLat + Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * sinLon * sinLon
+  ))
+  return c * R < (a.radius + b.radius)
+}
 
 const RADII = [25, 50, 100, 200]
 
@@ -52,6 +65,10 @@ export default function ClaimModal() {
 
   function handleClaim() {
     if (!name.trim()) { setError('Give your territory a name.'); return }
+    const existingZones = useTerritoryStore.getState().zones
+    const newZone = { lat: claimTarget.lat, lng: claimTarget.lng, radius }
+    const conflict = existingZones.find(z => zonesOverlap(z, newZone))
+    if (conflict) { setError(`Overlaps with existing zone "${conflict.name}".`); return }
     const zone = claimZone({
       lat:        claimTarget.lat,
       lng:        claimTarget.lng,
@@ -77,6 +94,7 @@ export default function ClaimModal() {
     <AnimatePresence>
       {isOpen && (
         <motion.div className={styles.backdrop} {...backdrop} onClick={close}>
+          <FocusTrap focusTrapOptions={{ escapeDeactivates: false, allowOutsideClick: true }}>
           <motion.div className={styles.card} {...card} onClick={e => e.stopPropagation()}>
             <button className={styles.closeBtn} onClick={close} aria-label="Close">
               <X size={14} />
@@ -166,6 +184,7 @@ export default function ClaimModal() {
               </>
             )}
           </motion.div>
+          </FocusTrap>
         </motion.div>
       )}
     </AnimatePresence>

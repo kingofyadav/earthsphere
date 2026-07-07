@@ -1,11 +1,12 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, devtools } from 'zustand/middleware'
 
 function genZoneId() {
   return 'zone:' + Date.now().toString(36) + ':' + Math.random().toString(36).slice(2, 6)
 }
 
 export const useTerritoryStore = create(
+  devtools(
   persist(
     (set) => ({
       zones: [],
@@ -30,5 +31,7 @@ export const useTerritoryStore = create(
       })),
     }),
     { name: 'earthsphere-territory' }
+  ),
+  { name: 'TerritoryStore' }
   )
 )

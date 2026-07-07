@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { devtools } from 'zustand/middleware'
 import { SUN_STOP, PLANETS, GALAXY_STOP } from '../components/SolarSystem/planetData'
 
 export const DWELL_SECONDS = 6
@@ -9,17 +10,22 @@ export const TOUR_STOPS = [
   GALAXY_STOP,
 ]
 
-export const useTourStore = create((set) => ({
-  isTouring:     false,
-  isPaused:      false,
-  stopIndex:     0,
-  dwellProgress: 0,
-  skipRequested: false,
-  prevRequested: false,
+export const useTourStore = create(
+  devtools(
+    (set) => ({
+      isTouring:     false,
+      isPaused:      false,
+      stopIndex:     0,
+      dwellProgress: 0,
+      skipRequested: false,
+      prevRequested: false,
 
-  startTour:    () => set({ isTouring: true, isPaused: false, stopIndex: 0, dwellProgress: 0, skipRequested: false, prevRequested: false }),
-  stopTour:     () => set({ isTouring: false, isPaused: false, stopIndex: 0, dwellProgress: 0 }),
-  togglePause:  () => set((s) => ({ isPaused: !s.isPaused })),
-  requestSkip:  () => set({ skipRequested: true }),
-  requestPrev:  () => set({ prevRequested: true }),
-}))
+      startTour:    () => set({ isTouring: true, isPaused: false, stopIndex: 0, dwellProgress: 0, skipRequested: false, prevRequested: false }),
+      stopTour:     () => set({ isTouring: false, isPaused: false, stopIndex: 0, dwellProgress: 0 }),
+      togglePause:  () => set((s) => ({ isPaused: !s.isPaused })),
+      requestSkip:  () => set({ skipRequested: true }),
+      requestPrev:  () => set({ prevRequested: true }),
+    }),
+    { name: 'TourStore' }
+  )
+)

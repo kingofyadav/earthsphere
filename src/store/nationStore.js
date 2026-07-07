@@ -1,11 +1,12 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, devtools } from 'zustand/middleware'
 
 function genId(prefix) {
   return `${prefix}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 6)}`
 }
 
 export const useNationStore = create(
+  devtools(
   persist(
     (set, get) => ({
       nations: [],
@@ -86,5 +87,7 @@ export const useNationStore = create(
       getTxLog:         (nation_id) => get().txLog.filter(t => t.nation_id === nation_id),
     }),
     { name: 'earthsphere-nations' }
+  ),
+  { name: 'NationStore' }
   )
 )

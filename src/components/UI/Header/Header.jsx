@@ -1,19 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Zap, Menu, X, Globe, Sun, Moon } from 'lucide-react'
+import { Zap, Globe, Sun, Moon, Volume2, VolumeX } from 'lucide-react'
 import { useEarthStore } from '../../../store/earthStore'
 import { useAuthStore } from '../../../store/authStore'
-import { useTravelStore } from '../../../store/travelStore'
-import { PLANETS, MOON, SUN_DATA } from '../../SolarSystem/planetData'
+import { initAudio, playSfx } from '../../../lib/audio'
+import { PAGE } from '../../../lib/pages'
 import styles from './Header.module.css'
 
-// Flat nav order: Sun → all planets → Moon injected after Earth
-const NAV_ITEMS = [
-  { ...SUN_DATA, isSun: true },
-  ...PLANETS.flatMap(p =>
-    p.name === 'Earth' ? [p, { ...MOON, isMoon: true }] : [p]
-  ),
-]
+const SYNC_LABEL = { synced: 'Synced', syncing: 'Syncing…', offline: 'Offline' }
 
 const BG_LABELS = { off: 'Clear', glass: 'Glass' }
 const BG_ICONS  = {
@@ -30,6 +24,35 @@ const BG_ICONS  = {
   ),
 }
 
+const THEME_MODES = [
+  { id: 'auto',  label: 'Auto',  Icon: null },
+  { id: 'day',   label: 'Day',   Icon: Sun  },
+  { id: 'night', label: 'Night', Icon: Moon },
+]
+
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const pad2 = (n) => String(n).padStart(2, '0')
+
+function Clock() {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(id)
+  }, [])
+  return (
+    <div className={styles.clock} aria-label="Current time">
+      <span className={styles.clockTime}>
+        {pad2(now.getHours())}:{pad2(now.getMinutes())}
+        <span className={styles.clockSec}>:{pad2(now.getSeconds())}</span>
+      </span>
+      <span className={styles.clockDate}>
+        {DAYS[now.getDay()]} · {pad2(now.getDate())} {MONTHS[now.getMonth()]}
+      </span>
+    </div>
+  )
+}
+
 export default function Header() {
   const resolvedTheme    = useEarthStore((s) => s.resolvedTheme)
   const themeMode        = useEarthStore((s) => s.themeMode)
@@ -38,26 +61,33 @@ export default function Header() {
   const setSceneBg       = useEarthStore((s) => s.setSceneBg)
   const currentPage      = useEarthStore((s) => s.currentPage)
   const setCurrentPage   = useEarthStore((s) => s.setCurrentPage)
-  const startTravel      = useTravelStore((s) => s.startTravel)
-  const targetPlanetName = useTravelStore((s) => s.targetPlanetName)
+  const audioMuted       = useEarthStore((s) => s.audioMuted)
+  const toggleAudio      = useEarthStore((s) => s.toggleAudio)
+  const syncStatus       = useEarthStore((s) => s.syncStatus)
 
   const isLoggedIn     = useAuthStore((s) => s.isLoggedIn)
   const logout         = useAuthStore((s) => s.logout)
   const openLoginModal = useAuthStore((s) => s.openLoginModal)
-  const recordVisit    = useAuthStore((s) => s.recordVisit)
 
   const [menuOpen, setMenuOpen] = useState(false)
   const closeMenu = () => setMenuOpen(false)
 
-  const isDark = resolvedTheme !== 'day'
+  const isDark  = resolvedTheme !== 'day'
+  const bgKey   = sceneBg === 'glass' ? 'glass' : 'off'
 
   function toggleGlass() {
     setSceneBg(sceneBg === 'glass' ? 'off' : 'glass')
   }
 
+  function handleAudioToggle() {
+    initAudio()                 // unlock AudioContext on this user gesture
+    toggleAudio()
+    if (audioMuted) playSfx('click')  // was muted → now on; confirm audibly
+  }
+
   function handleHdiNav() {
     if (!isLoggedIn) { openLoginModal(); return }
-    setCurrentPage(currentPage === 'hdi' ? null : 'hdi')
+    setCurrentPage(currentPage === PAGE.HDI ? null : PAGE.HDI)
   }
 
   function handleAuthClick() {
@@ -65,187 +95,124 @@ export default function Header() {
     openLoginModal()
   }
 
-  function handleNavItem(item) {
-    setCurrentPage(null)
-    if (item.isMoon) {
-      startTravel('Earth')
-      if (isLoggedIn) { recordVisit('Moon'); setCurrentPage('Moon') } else { openLoginModal() }
-      return
-    }
-    if (item.isSun) {
-      startTravel('Sun')
-      if (isLoggedIn) { recordVisit('Sun'); setCurrentPage('Sun') } else { openLoginModal() }
-      return
-    }
-    startTravel(item.name)
-    if (isLoggedIn) {
-      recordVisit(item.name)
-      setCurrentPage(item.name === 'Earth' ? 'earth-hero' : item.name)
-    } else {
-      openLoginModal()
-    }
-  }
-
-  function isItemActive(item) {
-    if (item.isMoon)  return currentPage === 'Moon'
-    if (item.isSun)   return currentPage === 'Sun'
-    if (item.isEarth) return currentPage === 'earth-hero'
-    return currentPage === item.name || targetPlanetName === item.name
-  }
-
   return (
-    <>
-      <header className={styles.header}>
-        <div className={styles.inner}>
+    <header className={styles.header}>
+      <div className={styles.inner}>
 
-          {/* ── Brand ── */}
-          <a className={styles.brand} href="/" aria-label="Digital World home" onClick={closeMenu}>
+        {/* ── Brand: logo opens HDI, name opens World ── */}
+        <div className={styles.brand}>
+          <button
+            className={styles.logoBtn}
+            data-active={currentPage === PAGE.HDI}
+            onClick={() => { handleHdiNav(); closeMenu() }}
+            aria-label="Open HDI profile"
+            title="HDI Profile"
+          >
             <img
               src={isDark ? '/logo/night-logo.png' : '/logo/day-logo.png'}
-              alt="logo"
+              alt=""
               className={styles.logo}
-              width="36"
-              height="36"
+              width="46"
+              height="46"
             />
-            <div className={styles.brandText}>
-              <span className={styles.brandName}>Digital World</span>
-              <span className={styles.brandTagline}>zerosoils</span>
-            </div>
-          </a>
-
-          {/* ── Nav ── */}
-          <nav className={styles.pageNav} aria-label="Main navigation">
-
-            {/* App pages */}
-            <div className={styles.appNav}>
-              <button
-                className={styles.appNavBtn}
-                data-active={currentPage === 'hdi'}
-                onClick={handleHdiNav}
-                aria-current={currentPage === 'hdi' ? 'page' : undefined}
-              >
-                HDI
-              </button>
-
-              <button
-                className={styles.appNavBtn}
-                data-active={currentPage === 'world'}
-                onClick={() => setCurrentPage(currentPage === 'world' ? null : 'world')}
-                aria-current={currentPage === 'world' ? 'page' : undefined}
-              >
-                <Globe size={11} aria-hidden="true" />
-                World
-              </button>
-            </div>
-
-            <div className={styles.navDivider} aria-hidden="true" />
-
-            {/* Universe — scrollable */}
-            <div className={styles.universeWrap}>
-              <div className={styles.universeNav}>
-                {NAV_ITEMS.map((item) => (
-                  <button
-                    key={item.name}
-                    className={`${styles.navLink} ${item.isMoon ? styles.navMoon : ''}`}
-                    data-active={isItemActive(item)}
-                    onClick={() => handleNavItem(item)}
-                  >
-                    <span
-                      className={styles.navLinkDot}
-                      style={{ background: item.color }}
-                      aria-hidden="true"
-                    />
-                    {item.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-          </nav>
-
-          {/* ── Unified control tray (desktop) ── */}
-          <div className={styles.tray}>
-            <button
-              className={styles.zapBtn}
-              onClick={() => useEarthStore.getState().toggleDevMode()}
-              aria-label="Toggle dev mode"
-              title="Ctrl+Shift+D"
-            >
-              <Zap size={12} />
-            </button>
-
-            <div className={styles.sep} />
-
-            <button
-              className={styles.bgBtn}
-              data-bg={sceneBg}
-              onClick={toggleGlass}
-              aria-label={`Scene overlay: ${BG_LABELS[sceneBg === 'glass' ? 'glass' : 'off']}`}
-              title={`Background: ${BG_LABELS[sceneBg === 'glass' ? 'glass' : 'off']}`}
-            >
-              {BG_ICONS[sceneBg === 'glass' ? 'glass' : 'off']}
-              <span>{BG_LABELS[sceneBg === 'glass' ? 'glass' : 'off']}</span>
-            </button>
-
-            <div className={styles.sep} />
-
-            {/* ── Theme: Auto / Day / Night ── */}
-            <div className={styles.themeGroup}>
-              <button
-                className={`${styles.themeBtn} ${themeMode === 'auto' ? styles.themeBtnActive : ''}`}
-                data-mode="auto"
-                onClick={() => setThemeMode('auto')}
-                aria-label="Auto theme" aria-pressed={themeMode === 'auto'}
-              >
-                <span className={styles.themeBtnAuto}>A</span>
-                <span>Auto</span>
-              </button>
-              <button
-                className={`${styles.themeBtn} ${themeMode === 'day' ? styles.themeBtnActive : ''}`}
-                data-mode="day"
-                onClick={() => setThemeMode('day')}
-                aria-label="Day theme" aria-pressed={themeMode === 'day'}
-              >
-                <Sun size={11} aria-hidden="true" />
-                <span>Day</span>
-              </button>
-              <button
-                className={`${styles.themeBtn} ${themeMode === 'night' ? styles.themeBtnActive : ''}`}
-                data-mode="night"
-                onClick={() => setThemeMode('night')}
-                aria-label="Night theme" aria-pressed={themeMode === 'night'}
-              >
-                <Moon size={11} aria-hidden="true" />
-                <span>Night</span>
-              </button>
-            </div>
-
-            <div className={styles.sep} />
-
-            <button className={styles.authBtn} onClick={handleAuthClick}>
-              {isLoggedIn ? 'Logout' : 'Login'}
-            </button>
-          </div>
-
-          {/* ── Hamburger (mobile only) ── */}
+          </button>
           <button
-            className={`${styles.hamburger} ${menuOpen ? styles.hamburgerOpen : ''}`}
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-label="Toggle menu"
-            aria-expanded={menuOpen}
+            className={styles.brandBtn}
+            data-active={currentPage === PAGE.WORLD}
+            onClick={() => { setCurrentPage(currentPage === PAGE.WORLD ? null : PAGE.WORLD); closeMenu() }}
+            aria-label="Open World community"
+            title="World · Community"
           >
-            {menuOpen ? <X size={20} /> : <Menu size={20} />}
+            <span className={styles.brandName}>Digital World</span>
+            <span className={styles.brandTagline}>community</span>
+          </button>
+        </div>
+
+        {/* ── Center: live clock ── */}
+        <Clock />
+
+        {/* ── Actions (desktop) ── */}
+        <div className={styles.actions}>
+          {isLoggedIn && (
+            <span
+              className={styles.syncPill}
+              data-status={syncStatus}
+              title={`Auto-sync: ${SYNC_LABEL[syncStatus]}`}
+            >
+              <span className={styles.syncDot} aria-hidden="true" />
+              {SYNC_LABEL[syncStatus]}
+            </span>
+          )}
+
+          <button
+            className={styles.iconBtn}
+            data-on={!audioMuted}
+            onClick={handleAudioToggle}
+            aria-label={audioMuted ? 'Unmute audio' : 'Mute audio'}
+            aria-pressed={!audioMuted}
+            title={audioMuted ? 'Sound off' : 'Sound on'}
+          >
+            {audioMuted ? <VolumeX size={13} /> : <Volume2 size={13} />}
           </button>
 
-        </div>
-      </header>
+          <button
+            className={styles.iconBtn}
+            onClick={() => useEarthStore.getState().toggleDevMode()}
+            aria-label="Toggle dev mode"
+            title="Ctrl+Shift+D"
+          >
+            <Zap size={12} />
+          </button>
 
-      {/* ── Mobile drawer ── */}
+          <button
+            className={styles.iconBtn}
+            data-on={sceneBg === 'glass'}
+            onClick={toggleGlass}
+            aria-label={`Scene overlay: ${BG_LABELS[bgKey]}`}
+            title={`Background: ${BG_LABELS[bgKey]}`}
+          >
+            {BG_ICONS[bgKey]}
+          </button>
+
+          <div className={styles.themeGroup} role="group" aria-label="Theme">
+            {THEME_MODES.map(({ id, label, Icon }) => (
+              <button
+                key={id}
+                className={styles.themeBtn}
+                data-active={themeMode === id}
+                onClick={() => setThemeMode(id)}
+                aria-label={`${label} theme`}
+                aria-pressed={themeMode === id}
+                title={`${label} theme`}
+              >
+                {Icon ? <Icon size={11} aria-hidden="true" /> : <span className={styles.themeAuto}>A</span>}
+              </button>
+            ))}
+          </div>
+
+          <button className={styles.authBtn} onClick={handleAuthClick}>
+            {isLoggedIn ? 'Logout' : 'Login'}
+          </button>
+        </div>
+
+        {/* ── Hamburger (mobile) ── */}
+        <button
+          className={`${styles.hamburger} ${menuOpen ? styles.hamburgerOpen : ''}`}
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-label="Toggle menu"
+          aria-expanded={menuOpen}
+        >
+          <span /><span /><span />
+        </button>
+
+      </div>
+
+      {/* ── Mobile dropdown panel ── */}
       <AnimatePresence>
         {menuOpen && (
           <>
             <motion.div
-              className={styles.drawerBackdrop}
+              className={styles.menuBackdrop}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -253,97 +220,84 @@ export default function Header() {
               onClick={closeMenu}
             />
             <motion.div
-              className={styles.drawer}
+              className={styles.menuPanel}
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
             >
-              {/* App pages */}
-              <div className={styles.drawerSection}>
-                <span className={styles.drawerSectionLabel}>Pages</span>
-                <div className={styles.drawerPills}>
+              <div className={styles.menuSection}>
+                <span className={styles.menuLabel}>Pages</span>
+                <div className={styles.menuPills}>
                   <button
-                    className={`${styles.drawerPill} ${currentPage === 'hdi' ? styles.drawerPillActive : ''}`}
+                    className={styles.menuPill}
+                    data-active={currentPage === PAGE.HDI}
                     onClick={() => { handleHdiNav(); closeMenu() }}
                   >
                     HDI
                   </button>
                   <button
-                    className={`${styles.drawerPill} ${currentPage === 'world' ? styles.drawerPillActive : ''}`}
-                    onClick={() => { setCurrentPage(currentPage === 'world' ? null : 'world'); closeMenu() }}
+                    className={styles.menuPill}
+                    data-active={currentPage === PAGE.WORLD}
+                    onClick={() => { setCurrentPage(currentPage === PAGE.WORLD ? null : PAGE.WORLD); closeMenu() }}
                   >
                     <Globe size={12} aria-hidden="true" /> World
                   </button>
                 </div>
               </div>
 
-              {/* Universe */}
-              <div className={styles.drawerSection}>
-                <span className={styles.drawerSectionLabel}>Universe</span>
-                <div className={styles.drawerPills}>
-                  {NAV_ITEMS.map((item) => (
-                    <button
-                      key={item.name}
-                      className={`${styles.drawerPill} ${isItemActive(item) ? styles.drawerPillActive : ''}`}
-                      style={item.isMoon ? { paddingLeft: '1.6rem', fontSize: '0.78rem' } : {}}
-                      onClick={() => { handleNavItem(item); closeMenu() }}
-                    >
-                      <span className={styles.drawerPlanetDot} style={{ background: item.color }} />
-                      {item.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Scene */}
-              <div className={styles.drawerSection}>
-                <span className={styles.drawerSectionLabel}>Scene</span>
-                <div className={styles.drawerPills}>
+              <div className={styles.menuSection}>
+                <span className={styles.menuLabel}>Scene</span>
+                <div className={styles.menuPills}>
                   <button
-                    className={`${styles.drawerPill} ${sceneBg === 'glass' ? styles.drawerPillActive : ''}`}
+                    className={styles.menuPill}
+                    data-active={sceneBg === 'glass'}
                     onClick={() => { toggleGlass(); closeMenu() }}
                     aria-pressed={sceneBg === 'glass'}
                   >
-                    {BG_ICONS[sceneBg === 'glass' ? 'glass' : 'off']}
-                    <span style={{ marginLeft: '0.3rem' }}>{BG_LABELS[sceneBg === 'glass' ? 'glass' : 'off']}</span>
+                    {BG_ICONS[bgKey]}
+                    <span>{BG_LABELS[bgKey]}</span>
+                  </button>
+                  <button
+                    className={styles.menuPill}
+                    data-active={!audioMuted}
+                    onClick={() => { handleAudioToggle(); closeMenu() }}
+                    aria-pressed={!audioMuted}
+                  >
+                    {audioMuted ? <VolumeX size={13} /> : <Volume2 size={13} />}
+                    <span>{audioMuted ? 'Sound Off' : 'Sound On'}</span>
                   </button>
                 </div>
               </div>
 
-              {/* Theme */}
-              <div className={styles.drawerSection}>
-                <span className={styles.drawerSectionLabel}>Theme</span>
-                <div className={styles.drawerThemePills}>
-                  {[
-                    { id: 'auto',  label: 'Auto',  Icon: null },
-                    { id: 'day',   label: 'Day',   Icon: Sun  },
-                    { id: 'night', label: 'Night', Icon: Moon },
-                  ].map(({ id, label, Icon }) => (
+              <div className={styles.menuSection}>
+                <span className={styles.menuLabel}>Theme</span>
+                <div className={styles.menuPills}>
+                  {THEME_MODES.map(({ id, label, Icon }) => (
                     <button
                       key={id}
-                      className={`${styles.drawerPill} ${styles.drawerThemePill} ${themeMode === id ? styles.drawerPillActive : ''}`}
+                      className={styles.menuPill}
+                      data-active={themeMode === id}
                       onClick={() => { setThemeMode(id); closeMenu() }}
                       aria-pressed={themeMode === id}
                     >
-                      {Icon ? <Icon size={13} /> : <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>A</span>}
+                      {Icon ? <Icon size={13} aria-hidden="true" /> : <span className={styles.themeAuto}>A</span>}
                       {label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Bottom: dev + auth */}
-              <div className={`${styles.drawerSection} ${styles.drawerBottom}`}>
+              <div className={`${styles.menuSection} ${styles.menuBottom}`}>
                 <button
-                  className={styles.drawerPill}
+                  className={styles.menuPill}
                   onClick={() => { useEarthStore.getState().toggleDevMode(); closeMenu() }}
                 >
-                  <Zap size={13} />
+                  <Zap size={13} aria-hidden="true" />
                   Dev Mode
                 </button>
                 <button
-                  className={`${styles.drawerPill} ${styles.drawerAuthPill}`}
+                  className={styles.menuAuth}
                   onClick={() => { handleAuthClick(); closeMenu() }}
                 >
                   {isLoggedIn ? 'Logout' : 'Login'}
@@ -353,6 +307,6 @@ export default function Header() {
           </>
         )}
       </AnimatePresence>
-    </>
+    </header>
   )
 }

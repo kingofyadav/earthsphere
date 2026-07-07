@@ -26,3 +26,9 @@ Thumbs.db
 
 coverage/
 *.tsbuildinfo
+
+# Test and scratch artifacts
+test-results/
+playwright-report/
+*.ipynb
+.ipynb_checkpoints/

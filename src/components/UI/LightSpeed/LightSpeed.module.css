@@ -1,0 +1,72 @@
+/* Light-speed travel overlay — sits above the scene, below the header/UI */
+.warp {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+
+/* subtle bright vignette pulling toward center */
+.core {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at center,
+    rgba(255, 255, 255, 0.14) 0%,
+    rgba(120, 180, 255, 0.06) 22%,
+    transparent 55%
+  );
+}
+
+/* each streak shoots outward from the center along --angle */
+.streak {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--len);
+  height: var(--thick);
+  transform-origin: 0 50%;
+  transform: rotate(var(--angle)) translateX(0) scaleX(0);
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(180, 210, 255, 0.5) 40%,
+    rgba(255, 255, 255, 0.95) 100%
+  );
+  filter: drop-shadow(0 0 3px rgba(160, 200, 255, 0.6));
+  animation: streak var(--dur) linear var(--delay) infinite;
+}
+
+@keyframes streak {
+  0% {
+    transform: rotate(var(--angle)) translateX(1.5vmax) scaleX(0);
+    opacity: 0;
+  }
+  12% { opacity: 1; }
+  100% {
+    transform: rotate(var(--angle)) translateX(75vmax) scaleX(1);
+    opacity: 0;
+  }
+}
+
+/* arrival flash */
+.flash {
+  position: fixed;
+  inset: 0;
+  z-index: 21;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at center,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(200, 225, 255, 0.6) 40%,
+    rgba(255, 255, 255, 0) 75%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .streak { animation: none; opacity: 0.4; transform: rotate(var(--angle)) scaleX(0.5); }
+}

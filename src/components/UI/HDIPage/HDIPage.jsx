@@ -11,6 +11,8 @@ import { useAuthStore } from '../../../store/authStore'
 import { useEarthStore } from '../../../store/earthStore'
 import { useTravelStore } from '../../../store/travelStore'
 import { useNationStore } from '../../../store/nationStore'
+import { trustLabel, computeTrustScore } from '../../../lib/hdiUtils'
+import { PAGE } from '../../../lib/pages'
 import styles from './HDIPage.module.css'
 
 /* ─────────────────────────────────────────
@@ -27,26 +29,6 @@ function relTime(msAgo) {
   if (msAgo < 60000)   return `${Math.floor(msAgo / 1000)}s ago`
   if (msAgo < 3600000) return `${Math.floor(msAgo / 60000)}m ago`
   return `${Math.floor(msAgo / 3600000)}h ago`
-}
-function trustLabel(score) {
-  if (score < 200) return 'Unverified'
-  if (score < 400) return 'Emerging'
-  if (score < 600) return 'Established'
-  if (score < 800) return 'Trusted'
-  return 'Sovereign'
-}
-function computeTrustScore(verif = {}, rels = [], assets = {}, rec = {}) {
-  let s = 100
-  if (verif.email)       s += 100
-  if (verif.phone)       s += 150
-  if (verif.govId)       s += 150
-  if (verif.employer)    s += 100
-  if (verif.university)  s += 100
-  if (verif.socialTrust) s += 100
-  s += Math.min((rels.length) * 10, 50)
-  s += Math.min(Object.values(assets).reduce((t, a) => t + (a?.length || 0), 0) * 10, 50)
-  s += Object.values(rec).filter(Boolean).length * 25
-  return Math.min(s, 1000)
 }
 
 /* ─────────────────────────────────────────
@@ -92,7 +74,7 @@ function PhaseGate({ phaseId, onStart }) {
       <div className={styles.phaseGateIcon}><Lock size={14} /></div>
       <div>
         <p className={styles.phaseGateTitle}>Visit {meta.planet} to unlock {meta.title}</p>
-        <p className={styles.phaseGateText}>Return to the solar system and travel there with your HDI. This phase opens after arrival.</p>
+        <p className={styles.phaseGateText}>Travel there to open this phase.</p>
       </div>
       <button className={styles.phaseGateBtn} onClick={() => onStart(meta.planet)} type="button">
         <Rocket size={13} />
@@ -228,7 +210,7 @@ export default function HDIPage() {
   useEffect(() => { if (isLoggedIn) syncVerifications() }, [isLoggedIn, syncVerifications])
 
   /* redirect if user logs out while HDI page is open */
-  useEffect(() => { if (!isLoggedIn && currentPage === 'hdi') setCurrentPage(null) }, [isLoggedIn, currentPage, setCurrentPage])
+  useEffect(() => { if (!isLoggedIn && currentPage === PAGE.HDI) setCurrentPage(null) }, [isLoggedIn, currentPage, setCurrentPage])
 
   /* ── local UI state ── */
   const [copied,         setCopied]         = useState(false)
@@ -261,6 +243,7 @@ export default function HDIPage() {
 
   const trustScore    = useMemo(() => computeTrustScore(verifications, relationships, assets, recovery), [verifications, relationships, assets, recovery])
   const verifiedCount = useMemo(() => Object.values(verifications).filter(Boolean).length, [verifications])
+  const permCount     = useMemo(() => Object.values(permissions).filter(Boolean).length, [permissions])
   const recCount      = useMemo(() => Object.values(recovery).filter(Boolean).length, [recovery])
   const totalAssets   = useMemo(() => Object.values(assets).reduce((s, a) => s + (a?.length || 0), 0), [assets])
   const familyConns   = useMemo(() => relationships.filter(r => r.type === 'family'), [relationships])
@@ -269,12 +252,12 @@ export default function HDIPage() {
   const unlocked = useMemo(() => ({
     p1: true,
     p2: visitedPlanets.has('Mercury') || verifiedCount > 2,
-    p3: visitedPlanets.has('Venus') || Object.values(permissions).filter(Boolean).length > 2,
+    p3: visitedPlanets.has('Venus') || permCount > 2,
     p4: visitedPlanets.has('Mars') || recCount > 0,
     p5: visitedPlanets.has('Jupiter') || relationships.length > 0,
     p6: visitedPlanets.has('Saturn') || totalAssets > 0,
     p7: visitedPlanets.has('Uranus') || visitedPlanets.has('Neptune'),
-  }), [visitedPlanets, verifiedCount, permissions, recCount, relationships.length, totalAssets])
+  }), [visitedPlanets, verifiedCount, permCount, recCount, relationships.length, totalAssets])
 
   const initials = useMemo(() => {
     if (!user?.name) return '?'
@@ -292,8 +275,10 @@ export default function HDIPage() {
     setCopied(true); setTimeout(() => setCopied(false), 1800)
   }
   function openProfile() {
+    const base = import.meta.env.VITE_PROFILE_URL
+    if (!base) return
     window.open(
-      `http://localhost:3001/pages/login.html?from=earthsphere&hdi=${encodeURIComponent(displayHdi)}`,
+      `${base}/pages/login.html?from=earthsphere&hdi=${encodeURIComponent(displayHdi)}`,
       '_blank', 'noopener,noreferrer'
     )
   }
@@ -307,20 +292,25 @@ export default function HDIPage() {
     startTravel(planet)
   }
 
+  // Claim Territory → fly home to Earth and land on the Earth hub (home page).
+  function handleClaimTerritory() {
+    setAppStage('explore')
+    setSceneBg('off')
+    recordVisit('Earth')
+    startTravel('Earth')
+    setCurrentPage(PAGE.EARTH_HERO)
+  }
+
   function openRelType(type) {
-    setActiveRelType((active) => {
-      const next = active === type ? null : type
-      if (next !== active) setRelForm({ name: '', hdi: '', notes: '' })
-      return next
-    })
+    const next = activeRelType === type ? null : type
+    if (next !== activeRelType) setRelForm({ name: '', hdi: '', notes: '' })
+    setActiveRelType(next)
   }
 
   function openAssetType(type) {
-    setActiveAssetType((active) => {
-      const next = active === type ? null : type
-      if (next !== active) setAssetForm({ value: '', label: '', issuer: '', date: '', docType: 'Legal' })
-      return next
-    })
+    const next = activeAssetType === type ? null : type
+    if (next !== activeAssetType) setAssetForm({ value: '', label: '', issuer: '', date: '', docType: 'Legal' })
+    setActiveAssetType(next)
   }
 
   async function handleVerify(key) {
@@ -392,12 +382,12 @@ export default function HDIPage() {
 
   return (
     <AnimatePresence>
-      {currentPage === 'hdi' && isLoggedIn && (
+      {currentPage === PAGE.HDI && isLoggedIn && (
         <motion.div
           className={styles.overlay}
           initial={{ opacity: 0, x: 80 }} animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 80 }} transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          role="main" aria-label="HDI Profile"
+          role="dialog" aria-modal="true" aria-label="HDI Profile"
         >
           <button className={styles.backBtn} onClick={() => setCurrentPage(null)} aria-label="Back">
             <X size={13} /><span>Solar System</span>
@@ -406,39 +396,51 @@ export default function HDIPage() {
           <div className={styles.inner}>
 
             {/* ══ HERO ══ */}
-            <motion.header className={styles.hero} variants={fade} initial="hidden" animate="show" transition={tr(0.05)}>
-              <p className={styles.eyebrow}>ACT 3 · EXPLORATION · HUMAN DIGITAL IDENTITY PROTOCOL v0.1</p>
-              <div className={styles.heroRow}>
+            <motion.header className={styles.heroCard} variants={fade} initial="hidden" animate="show" transition={tr(0.05)}>
+              <div className={styles.heroHead}>
                 <div className={styles.avatar} aria-hidden="true">
                   <span className={styles.avatarText}>{initials}</span>
                 </div>
-                <h1 className={styles.hdiTag}>{displayHdi}</h1>
-                <span className={styles.activeBadge}>
-                  <span className={styles.activeDot} aria-hidden="true" />ACTIVE
-                </span>
-                <button className={`${styles.copyBtn} ${copied ? styles.copyDone : ''}`} onClick={copyHdi}>
+                <div className={styles.heroTitle}>
+                  <h1 className={styles.hdiTag}>{displayHdi}</h1>
+                  <div className={styles.heroSub}>
+                    <span className={styles.protoTag}>HDI v0.1-alpha</span>
+                    <span className={styles.activeBadge}>
+                      <span className={styles.activeDot} aria-hidden="true" />ACTIVE
+                    </span>
+                  </div>
+                </div>
+                <div className={styles.trustReadout} title={`${trustScore}/1000 — ${trustLabel(trustScore)}`}>
+                  <span className={styles.trustReadoutVal}>{trustScore}</span>
+                  <span className={styles.trustReadoutKey}>Trust Score</span>
+                </div>
+              </div>
+
+              <div className={styles.heroActions}>
+                <button className={`${styles.heroBtn} ${copied ? styles.copyDone : ''}`} onClick={copyHdi}>
                   {copied ? <Check size={13} /> : <Copy size={13} />}
                   <span>{copied ? 'Copied!' : 'Copy'}</span>
                 </button>
-                <button className={styles.profileBtn} onClick={openProfile} type="button" title="Login to Profile site with this HDI">
+                <button className={styles.heroBtn} onClick={openProfile} type="button" title="Login to Profile site with this HDI">
                   <ExternalLink size={13} />
-                  <span>Open Profile</span>
+                  <span>Profile</span>
+                </button>
+                <button className={styles.heroBtn} onClick={exportIdentity} type="button" title="Download identity JSON">
+                  <Download size={13} />
+                  <span>Export</span>
                 </button>
               </div>
 
-              <div className={styles.statsBar}>
+              <div className={styles.readout}>
                 {[
-                  { v: trustScore,       k: 'Trust Score'      },
-                  { v: events.length,    k: 'Events'           },
-                  { v: `${verifiedCount}/6`, k: 'Verified Sources' },
-                  { v: `${Object.values(permissions).filter(Boolean).length}/6`, k: 'Permissions' },
-                ].map(({ v, k }, i, arr) => (
-                  <div key={k} style={{ display: 'contents' }}>
-                    <div className={styles.stat}>
-                      <span className={styles.statVal}>{v}</span>
-                      <span className={styles.statKey}>{k}</span>
-                    </div>
-                    {i < arr.length - 1 && <div className={styles.statDiv} />}
+                  { k: 'Verified Sources', v: `${verifiedCount}/6` },
+                  { k: 'Permissions',      v: `${permCount}/6`     },
+                  { k: 'Recovery Methods', v: `${recCount}/4`      },
+                  { k: 'Linked Assets',    v: totalAssets          },
+                ].map(({ k, v }) => (
+                  <div key={k} className={styles.readoutRow}>
+                    <span className={styles.readoutKey}>{k}</span>
+                    <span className={styles.readoutVal}>{v}</span>
                   </div>
                 ))}
               </div>
@@ -620,8 +622,8 @@ export default function HDIPage() {
                       )}
                       {activeVerify === 'socialTrust' && (
                         !canSocTrust
-                          ? <p className={styles.verifyGate}><AlertTriangle size={12} />Requires 3+ verified connections. Current: {relationships.length}/3. Add connections in Phase 5 first.</p>
-                          : <p className={styles.verifyNote}>Vouching will be requested from your {relationships.length} connections. This confirms your identity through social consensus.</p>
+                          ? <p className={styles.verifyGate}><AlertTriangle size={12} />Requires 3+ connections ({relationships.length}/3). Add them in Phase 5.</p>
+                          : <p className={styles.verifyNote}>Vouching will be requested from your {relationships.length} connections.</p>
                       )}
 
                       <div className={styles.fActions}>
@@ -639,7 +641,7 @@ export default function HDIPage() {
                 )}
               </AnimatePresence>
 
-              <p className={styles.verifyNote}>Each verified source increases your trust score and unlocks new permissions.</p>
+              <p className={styles.verifyNote}>Each verified source raises your trust score.</p>
             </motion.section>
             ) : <div id="p2"><PhaseGate phaseId="p2" onStart={startPhaseTravel} /></div>}
 
@@ -648,7 +650,7 @@ export default function HDIPage() {
             ══════════════════════════════════════ */}
             <PhaseBar
               num={3} title="Permission Engine"
-              status={unlocked.p3 ? `${Object.values(permissions).filter(Boolean).length}/6 ACTIVE` : 'LOCKED'}
+              status={unlocked.p3 ? `${permCount}/6 ACTIVE` : 'LOCKED'}
               type={!unlocked.p3 ? 'empty' : Object.values(permissions).every(Boolean) ? 'complete' : 'partial'}
             />
             {unlocked.p3 ? (
@@ -706,7 +708,7 @@ export default function HDIPage() {
               {recCount === 0 && (
                 <div className={styles.recoveryAlert} role="alert">
                   <AlertTriangle size={14} />
-                  <span>No recovery method configured. Without one, your identity cannot be restored if access is lost.</span>
+                  <span>No recovery method configured — access cannot be restored if lost.</span>
                 </div>
               )}
 
@@ -1130,7 +1132,7 @@ export default function HDIPage() {
                     { label: 'Trust Score',       val: trustScore        },
                     { label: 'Trust Tier',         val: trustLabel(trustScore) },
                     { label: 'Verified Sources',   val: `${verifiedCount}/6` },
-                    { label: 'Active Permissions', val: `${Object.values(permissions).filter(Boolean).length}/6` },
+                    { label: 'Active Permissions', val: `${permCount}/6` },
                     { label: 'Recovery Methods',   val: `${recCount}/4` },
                     { label: 'Connections',        val: relationships.length },
                     { label: 'Linked Assets',      val: totalAssets },
@@ -1158,14 +1160,14 @@ export default function HDIPage() {
               </div>
 
               {myNations.length === 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div className={styles.nationEmpty}>
                   <p className={styles.verifyNote}>You have not joined any nations yet.</p>
-                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <button className={styles.fSubmitBtn} style={{ flex: 'none', width: 'auto', padding: '0 1rem' }} onClick={() => setCurrentPage('world')}>
+                  <div className={styles.btnRow}>
+                    <button className={`${styles.fSubmitBtn} ${styles.inlineBtn}`} onClick={() => setCurrentPage(PAGE.WORLD)}>
                       <Globe size={13} /> Browse Nations
                     </button>
-                    <button className={styles.fCancelBtn} onClick={() => { setCurrentPage(null); setAppStage('explore') }}>
-                      Claim Territory
+                    <button className={styles.fCancelBtn} onClick={handleClaimTerritory}>
+                      <Rocket size={13} /> Claim Territory
                     </button>
                   </div>
                 </div>
@@ -1174,22 +1176,22 @@ export default function HDIPage() {
                   {myNations.map(n => {
                     const isFounder = n.founder_hid === user?.hdi
                     return (
-                      <div key={n.id} className={styles.recordRow} style={{ gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '1.4rem', lineHeight: 1 }}>{n.flag}</span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div className={styles.rVal} style={{ fontWeight: 600 }}>{n.name}</div>
-                          <div className={`${styles.rKey} ${styles.mono}`} style={{ marginTop: '0.1rem' }}>
+                      <div key={n.id} className={styles.nationRow}>
+                        <span className={styles.nationFlag}>{n.flag}</span>
+                        <div className={styles.nationInfo}>
+                          <div className={styles.nationName}>{n.name}</div>
+                          <div className={styles.nationMeta}>
                             {n.citizen_hids.length} citizens · {n.zones.length} zones · {n.treasury_balance.toLocaleString()} RPC
                           </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexShrink: 0 }}>
+                        <div className={styles.nationActions}>
                           {isFounder && (
-                            <span className={styles.statusActive} style={{ fontSize: '0.62rem', padding: '0.1rem 0.4rem' }}>
+                            <span className={`${styles.statusActive} ${styles.founderTag}`}>
                               <Flag size={9} />Founder
                             </span>
                           )}
-                          <button className={styles.fSubmitBtn} style={{ height: '28px', padding: '0 0.75rem', fontSize: '0.75rem' }}
-                            onClick={() => { setNationReturnPage('hdi'); setCurrentNationId(n.id); setCurrentPage('nation') }}>
+                          <button className={`${styles.fSubmitBtn} ${styles.nationViewBtn}`}
+                            onClick={() => { setNationReturnPage(PAGE.HDI); setCurrentNationId(n.id); setCurrentPage(PAGE.NATION) }}>
                             View
                           </button>
                         </div>

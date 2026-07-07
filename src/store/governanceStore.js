@@ -1,11 +1,12 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, devtools } from 'zustand/middleware'
 
 function genId() {
   return `prop:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 6)}`
 }
 
 export const useGovernanceStore = create(
+  devtools(
   persist(
     (set, get) => ({
       proposals: [],
@@ -43,12 +44,14 @@ export const useGovernanceStore = create(
       finalizeExpired: () => set(s => ({
         proposals: s.proposals.map(p => {
           if (p.status !== 'open' || new Date(p.deadline) > new Date()) return p
-          return { ...p, status: p.votes_for.length >= p.votes_against.length ? 'passed' : 'rejected' }
+          return { ...p, status: p.votes_for.length > p.votes_against.length ? 'passed' : 'rejected' }
         }),
       })),
 
       getByNation: (nation_id) => get().proposals.filter(p => p.nation_id === nation_id),
     }),
     { name: 'earthsphere-governance' }
+  ),
+  { name: 'GovernanceStore' }
   )
 )

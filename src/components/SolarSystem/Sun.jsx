@@ -4,8 +4,10 @@ import { useTexture, Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { SUN_RADIUS } from './planetData'
 import { registerPlanet, unregisterPlanet } from '../../travel/travelState'
-import { useTourStore } from '../../store/tourStore'
 import { useEarthStore } from '../../store/earthStore'
+import { useAuthStore } from '../../store/authStore'
+import { initAudio, playSfx } from '../../lib/audio'
+import { PAGE } from '../../lib/pages'
 import styles from './Planet.module.css'
 
 export default function Sun() {
@@ -15,9 +17,24 @@ export default function Sun() {
   const c2Ref    = useRef()
   const c3Ref    = useRef()
   const [sunMap] = useTexture(['/textures/planets/sun.jpg'])
-  const startTour = useTourStore((s) => s.startTour)
-  const timeScale = useEarthStore((s) => s.timeScale)
+  const timeScale      = useEarthStore((s) => s.timeScale)
+  const setCurrentPage = useEarthStore((s) => s.setCurrentPage)
+  const setAppStage    = useEarthStore((s) => s.setAppStage)
+  const isLoggedIn     = useAuthStore((s) => s.isLoggedIn)
+  const openLoginModal = useAuthStore((s) => s.openLoginModal)
   const [hovered, setHovered] = useState(false)
+
+  // The Sun is the identity core: tap it to register / sign in, or open your HDI.
+  function handleSunClick(e) {
+    e.stopPropagation()
+    initAudio()
+    playSfx('gateway')
+    if (isLoggedIn) {
+      setCurrentPage(PAGE.HDI)
+    } else {
+      openLoginModal()
+    }
+  }
 
   // Register so TravelController + AutoTour can fly to the Sun
   useEffect(() => {
@@ -47,7 +64,7 @@ export default function Sun() {
         ref={coreRef}
         onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = 'pointer' }}
         onPointerOut={() => { setHovered(false); document.body.style.cursor = 'default' }}
-        onClick={(e) => { e.stopPropagation(); startTour() }}
+        onClick={handleSunClick}
       >
         <sphereGeometry args={[SUN_RADIUS, 128, 128]} />
         <meshBasicMaterial map={sunMap} color="#fffbe8" />
@@ -55,7 +72,7 @@ export default function Sun() {
 
       {hovered && (
         <Html position={[0, SUN_RADIUS + 0.3, 0]} center distanceFactor={9} zIndexRange={[50, 0]} occlude={false}>
-          <div className={styles.label}>The Sun - Start Tour</div>
+          <div className={styles.label}>{isLoggedIn ? 'Your HDI · Identity Core' : 'Register / Sign in'}</div>
         </Html>
       )}
 

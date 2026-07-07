@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, devtools } from 'zustand/middleware'
 
 function haversine(lat1, lng1, lat2, lng2) {
   const R = 6371
@@ -19,6 +19,7 @@ function genId(p) {
 }
 
 export const useRelationStore = create(
+  devtools(
   persist(
     (set, get) => ({
       alliances: [],
@@ -91,5 +92,7 @@ export const useRelationStore = create(
       getConflictsFor: (nid) => get().conflicts.filter(c => c.nation_a === nid || c.nation_b === nid),
     }),
     { name: 'earthsphere-relations' }
+  ),
+  { name: 'RelationStore' }
   )
 )

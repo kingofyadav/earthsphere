@@ -1,5 +1,7 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, devtools } from 'zustand/middleware'
+import { verifyPassword } from '../lib/crypto.js'
+import { secureStorage } from '../lib/securePersistStorage.js'
 
 const DEF_PERMS  = { CAN_VIEW: true, CAN_VERIFY: true, CAN_TRANSFER: false, CAN_SHARE: false, CAN_RECOVER: false, CAN_CLAIM: false }
 const DEF_VERIF  = { email: false, phone: false, govId: false, employer: false, university: false, socialTrust: false }
@@ -51,9 +53,11 @@ function normalizeUser(user = {}) {
 }
 
 export const useAuthStore = create(
+  devtools(
   persist(
-    (set) => ({
-      isLoggedIn: false, user: null, isLoginOpen: false, orbitHistory: [],
+    (set, get) => ({
+      isLoggedIn: false, user: null, savedUser: null, isLoginOpen: false, orbitHistory: [],
+      savedEmail: '', passwordHash: '',
       permissions:   { ...DEF_PERMS  },
       verifications: { ...DEF_VERIF  },
       recovery:      { ...DEF_REC    },
@@ -61,15 +65,36 @@ export const useAuthStore = create(
       assets:        { ...DEF_ASSETS },
       disclosure:    { ...DEF_DISC   },
 
-      login: (user) => set((s) => {
-        // Preserve existing user data when re-logging in with the same email
-        const incoming = { ...(s.user?.email === (user.email || '').trim() ? s.user : {}), ...user }
-        const nextUser = normalizeUser(incoming)
+      // Called from genesis (new identity creation). userData may include passwordHash.
+      login: (userData) => set((s) => {
+        const { passwordHash: hash, ...rest } = userData
+        const prevUser = s.savedUser?.email === (rest.email || '').trim() ? s.savedUser : {}
+        const nextUser = normalizeUser({ ...prevUser, ...rest })
         return {
-          isLoggedIn: true, user: nextUser, isLoginOpen: false,
+          isLoggedIn: true, user: nextUser, savedUser: nextUser, isLoginOpen: false,
+          savedEmail: nextUser.email || s.savedEmail,
+          passwordHash: hash || s.passwordHash,
           verifications: { ...s.verifications, email: Boolean(nextUser.email), phone: Boolean(nextUser.phone) },
         }
       }),
+
+      // Called from AuthModal (returning user login). Verifies PBKDF2 hash.
+      loginWithPassword: async (email, password) => {
+        const s = get()
+        if (!s.passwordHash) {
+          // No hash yet (legacy/demo session) — accept any password and restore saved profile
+          const user = s.savedUser || (s.savedEmail ? normalizeUser({ email: s.savedEmail }) : null)
+          set({ isLoggedIn: true, isLoginOpen: false, user })
+          return { ok: true }
+        }
+        if (s.savedEmail && email !== s.savedEmail) {
+          return { ok: false, error: 'Email not found.' }
+        }
+        const valid = await verifyPassword(password, s.passwordHash)
+        if (!valid) return { ok: false, error: 'Incorrect password.' }
+        set({ isLoggedIn: true, isLoginOpen: false, user: s.savedUser || normalizeUser({ email }) })
+        return { ok: true }
+      },
 
       logout: () => set({
         isLoggedIn: false, user: null,
@@ -132,12 +157,16 @@ export const useAuthStore = create(
     }),
     {
       name: 'earthsphere-auth',
+      storage: secureStorage,
       partialize: s => ({
-        isLoggedIn: s.isLoggedIn, user: s.user, orbitHistory: s.orbitHistory,
-        permissions: s.permissions, verifications: s.verifications,
-        recovery: s.recovery, relationships: s.relationships,
-        assets: s.assets, disclosure: s.disclosure,
+        isLoggedIn: s.isLoggedIn, user: s.user, savedUser: s.savedUser,
+        savedEmail: s.savedEmail, passwordHash: s.passwordHash,
+        orbitHistory: s.orbitHistory, permissions: s.permissions,
+        verifications: s.verifications, recovery: s.recovery,
+        relationships: s.relationships, assets: s.assets, disclosure: s.disclosure,
       }),
     }
+  ),
+  { name: 'AuthStore' }
   )
 )

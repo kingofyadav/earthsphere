@@ -6,6 +6,7 @@ import { liveTravel, planetRefs } from '../../travel/travelState'
 
 const _target   = new THREE.Vector3()
 const _camPos   = new THREE.Vector3()
+const _dir      = new THREE.Vector3()
 
 // How close the camera stops from the planet surface (world units, before scene scale)
 const DEFAULT_STOP_OFFSET = 1.4
@@ -44,7 +45,7 @@ export default function TravelController({ orbitControlsRef, scale }) {
 
     // Approach vector: stop offset world-units away from planet
     _camPos.copy(camera.position)
-    const dir      = _camPos.clone().sub(_target).normalize()
+    const dir      = _dir.copy(_camPos).sub(_target).normalize()
     
     // Determine stop distance based on target
     let rawOffset = DEFAULT_STOP_OFFSET

@@ -67,7 +67,6 @@ export default function JarvisCard() {
 
   useEffect(() => {
     if (isJarvisOpen) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTab(jarvisTab || 'profile')
     } else {
       setInput('')

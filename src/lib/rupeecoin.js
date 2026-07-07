@@ -12,6 +12,8 @@ export const rcGetUTXOs   = (address) => rpcFetch(`/utxos?address=${encodeURICom
 
 export const rcNewWallet  = () => rpcFetch('/wallet/new', { method: 'POST' })
 
+// SECURITY: private_key must never be sent over a network in production.
+// Replace this with client-side signing: sign the tx locally, broadcast only the signed bytes.
 export const rcSendTx = ({ from_address, to_address, amount, private_key }) =>
   rpcFetch('/tx', {
     method:  'POST',

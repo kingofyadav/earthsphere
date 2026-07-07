@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X, Flag, FileText, CheckCircle, ChevronRight, ChevronLeft } from 'lucide-react'
+import FocusTrap from 'focus-trap-react'
 import { useEarthStore } from '../../../store/earthStore'
 import { useAuthStore } from '../../../store/authStore'
 import { useTerritoryStore } from '../../../store/territoryStore'
 import { useNationStore } from '../../../store/nationStore'
+import { PAGE } from '../../../lib/pages'
 import styles from './NationFounder.module.css'
 
 const FLAGS = [
@@ -83,7 +85,7 @@ export default function NationFounder() {
     setZoneNation(zone.id, nation.id)
     setCurrentNationId(nation.id)
     close()
-    setCurrentPage('nation')
+    setCurrentPage(PAGE.NATION)
   }
 
   const isOpen = Boolean(nationFounderZoneId && zone)
@@ -94,6 +96,7 @@ export default function NationFounder() {
     <AnimatePresence>
       {isOpen && (
         <motion.div className={styles.backdrop} {...backdrop} onClick={close}>
+          <FocusTrap focusTrapOptions={{ escapeDeactivates: false, allowOutsideClick: true }}>
           <motion.div className={styles.card} {...card} onClick={e => e.stopPropagation()}>
             <button className={styles.closeBtn} onClick={close} aria-label="Close"><X size={14} /></button>
 
@@ -195,6 +198,7 @@ export default function NationFounder() {
               )}
             </AnimatePresence>
           </motion.div>
+          </FocusTrap>
         </motion.div>
       )}
     </AnimatePresence>

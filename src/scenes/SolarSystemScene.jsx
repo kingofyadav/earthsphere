@@ -1,5 +1,5 @@
 import { Suspense, useRef, useEffect } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { OrbitControls, useProgress } from '@react-three/drei'
 import { useEarthStore } from '../store/earthStore'
@@ -19,14 +19,21 @@ const DEVICE_CONFIG = {
 }
 
 function LoadWatcher() {
-  const { progress } = useProgress()
-  const setLoaded    = useEarthStore((s) => s.setLoaded)
-  const triggered    = useRef(false)
-  const fire         = useRef(() => {
-    if (!triggered.current) { triggered.current = true; setTimeout(setLoaded, 400) }
-  })
-  useEffect(() => { if (progress >= 100) fire.current() }, [progress])
-  useEffect(() => { const t = setTimeout(fire.current, 8000); return () => clearTimeout(t) }, [])
+  const setLoaded = useEarthStore((s) => s.setLoaded)
+  const triggered = useRef(false)
+
+  useEffect(() => {
+    const fire = () => {
+      if (!triggered.current) { triggered.current = true; setTimeout(setLoaded, 400) }
+    }
+    // Subscribe outside render to avoid setState-during-render in React 19
+    // when useTexture in child components synchronously updates the progress store
+    if (useProgress.getState().progress >= 100) { fire(); return }
+    const unsub = useProgress.subscribe(({ progress }) => { if (progress >= 100) fire() })
+    const fallback = setTimeout(fire, 8000)
+    return () => { unsub(); clearTimeout(fallback) }
+  }, [setLoaded])
+
   return null
 }
 
@@ -49,6 +56,19 @@ function SceneLighting() {
   )
 }
 
+// Sync camera position/fov when device breakpoint changes without destroying the WebGL context
+function CameraSync({ device }) {
+  const { camera, invalidate } = useThree()
+  useEffect(() => {
+    const cfg = DEVICE_CONFIG[device]
+    camera.position.set(...cfg.position)
+    camera.fov = cfg.fov
+    camera.updateProjectionMatrix()
+    invalidate()
+  }, [device, camera, invalidate])
+  return null
+}
+
 // Pause auto-rotate when touring so camera is controlled by TravelController
 function AutoRotateSync({ orbitControlsRef }) {
   const isTouring = useTourStore((s) => s.isTouring)
@@ -68,7 +88,6 @@ export default function SolarSystemScene() {
 
   return (
     <Canvas
-      key={device}
       camera={{ position, fov, near: 0.1, far: 10000 }}
       gl={{
         antialias: true,
@@ -110,6 +129,7 @@ export default function SolarSystemScene() {
       {/* Background stars */}
       <Starfield />
 
+      <CameraSync device={device} />
       <LoadWatcher />
       <DevOverlayR3F />
 

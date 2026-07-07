@@ -9,6 +9,7 @@ import { useAuthStore }   from '../../../store/authStore'
 import { PLANETS, MOON, SUN_DATA } from '../../SolarSystem/planetData'
 import { PLANET_INFO }    from '../../../data/planetInfo'
 import { calcPlanetLiveData } from '../../../lib/orbitalMechanics'
+import { PAGE } from '../../../lib/pages'
 import styles from './PlanetPage.module.css'
 
 const PLANET_TO_PHASE = {
@@ -19,8 +20,8 @@ const PLANET_TO_PHASE = {
 
 const ALL_BODIES = [...PLANETS.filter(p => !p.isEarth), MOON, SUN_DATA]
 
-// eslint-disable-next-line react-refresh/only-export-components
-export const PLANET_PAGE_NAMES = ALL_BODIES.map(b => b.name)
+// Re-exported from lib/pages to allow lazy-loading this component without pulling in the name list
+export { PLANET_PAGE_NAMES } from '../../../lib/pages'
 
 /* ── 3D rotating planet ─────────────────────────────────────────────────────── */
 function PlanetBall({ textureUrl, color, hasRings }) {
@@ -360,13 +361,18 @@ export default function PlanetPage() {
   // Reset to overview when changing planet
   useEffect(() => { if (data) setTab('overview') }, [data?.name]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const scrollTimerRef = useRef(null)
+  useEffect(() => () => { if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current) }, [])
+
   function handleExplore() {
     if (!isLoggedIn) { openLoginModal(); return }
     const phaseId = data ? PLANET_TO_PHASE[data.name] : null
-    setCurrentPage('hdi')
-    if (phaseId) setTimeout(() => {
-      document.getElementById(phaseId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 480)
+    setCurrentPage(PAGE.HDI)
+    if (phaseId) {
+      scrollTimerRef.current = setTimeout(() => {
+        document.getElementById(phaseId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 480)
+    }
   }
 
   return (

@@ -2,6 +2,7 @@ import { useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, FileText } from 'lucide-react'
 import { useEarthStore } from '../../../store/earthStore'
+import { PAGE } from '../../../lib/pages'
 import styles from './SurfacePage.module.css'
 
 export default function SurfacePage() {
@@ -10,14 +11,14 @@ export default function SurfacePage() {
   const editorRef      = useRef(null)
 
   useEffect(() => {
-    if (currentPage === 'surface') {
+    if (currentPage === PAGE.SURFACE) {
       setTimeout(() => editorRef.current?.focus(), 350)
     }
   }, [currentPage])
 
   return (
     <AnimatePresence>
-      {currentPage === 'surface' && (
+      {currentPage === PAGE.SURFACE && (
         <motion.div
           key="surface"
           className={styles.container}
@@ -29,7 +30,7 @@ export default function SurfacePage() {
           <header className={styles.header}>
             <button
               className={styles.backBtn}
-              onClick={() => setCurrentPage('earth-hero')}
+              onClick={() => setCurrentPage(PAGE.EARTH_HERO)}
               aria-label="Back to Earth"
             >
               <ArrowLeft size={13} />

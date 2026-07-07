@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { User, Phone, Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react'
 import { useAuthStore, generateHDI } from '../../../store/authStore'
 import { useEarthStore } from '../../../store/earthStore'
+import { hashPassword } from '../../../lib/crypto'
 import styles from './GenesisScreen.module.css'
 
 const slide = {
@@ -76,8 +77,11 @@ export default function GenesisScreen() {
     const hdi = generateHDI(name, phone, email)
     setMintedHdi(hdi)
     setStep('minting')
-    await new Promise(r => setTimeout(r, 1800))
-    login({ name, phone, email, hdi, createdAt: Date.now() })
+    const [, passwordHash] = await Promise.all([
+      new Promise(r => setTimeout(r, 1800)),
+      hashPassword(password),
+    ])
+    login({ name, phone, email, hdi, passwordHash, createdAt: Date.now() })
     setStep('complete')
   }
 

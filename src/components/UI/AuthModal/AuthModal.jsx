@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Eye, EyeOff, Mail, Lock } from 'lucide-react'
+import FocusTrap from 'focus-trap-react'
 import { useAuthStore } from '../../../store/authStore'
 import { useEarthStore } from '../../../store/earthStore'
 import styles from './AuthModal.module.css'
@@ -21,14 +22,14 @@ const GithubIcon = () => (
 )
 
 export default function AuthModal() {
-  const isLoginOpen     = useAuthStore(s => s.isLoginOpen)
-  const login           = useAuthStore(s => s.login)
-  const closeLoginModal = useAuthStore(s => s.closeLoginModal)
-  const resolvedTheme   = useEarthStore(s => s.resolvedTheme)
-  const appStage        = useEarthStore(s => s.appStage)
-  const setAppStage     = useEarthStore(s => s.setAppStage)
-  const setSceneBg      = useEarthStore(s => s.setSceneBg)
-  const setCurrentPage  = useEarthStore(s => s.setCurrentPage)
+  const isLoginOpen       = useAuthStore(s => s.isLoginOpen)
+  const loginWithPassword = useAuthStore(s => s.loginWithPassword)
+  const closeLoginModal   = useAuthStore(s => s.closeLoginModal)
+  const resolvedTheme     = useEarthStore(s => s.resolvedTheme)
+  const appStage          = useEarthStore(s => s.appStage)
+  const setAppStage       = useEarthStore(s => s.setAppStage)
+  const setSceneBg        = useEarthStore(s => s.setSceneBg)
+  const setCurrentPage    = useEarthStore(s => s.setCurrentPage)
 
   const [email,     setEmail]     = useState('')
   const [password,  setPassword]  = useState('')
@@ -59,9 +60,9 @@ export default function AuthModal() {
     e.preventDefault()
     if (!email || !password) { setError('Please fill in all fields.'); return }
     setError(''); setLoading(true)
-    await new Promise(r => setTimeout(r, 900))
+    const result = await loginWithPassword(email, password)
     setLoading(false)
-    login({ email })
+    if (!result.ok) { setError(result.error || 'Sign in failed.'); return }
     afterLogin()
   }
 
@@ -87,106 +88,108 @@ export default function AuthModal() {
           transition={{ duration: 0.22 }}
           onClick={e => { if (e.target === e.currentTarget) closeAndReset() }}
         >
-          <motion.div
-            className={styles.card}
-            initial={{ opacity: 0, y: 28, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0,  scale: 1    }}
-            exit={{ opacity: 0,    y: 16, scale: 0.97 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            role="dialog" aria-modal="true" aria-label="Sign in"
-          >
-            <button className={styles.closeBtn} onClick={closeAndReset} aria-label="Close">
-              <X size={14} />
-            </button>
+          <FocusTrap focusTrapOptions={{ escapeDeactivates: false, allowOutsideClick: true }}>
+            <motion.div
+              className={styles.card}
+              initial={{ opacity: 0, y: 28, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0,  scale: 1    }}
+              exit={{ opacity: 0,    y: 16, scale: 0.97 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              role="dialog" aria-modal="true" aria-label="Sign in"
+            >
+              <button className={styles.closeBtn} onClick={closeAndReset} aria-label="Close">
+                <X size={14} />
+              </button>
 
-            <div className={styles.brand}>
-              <img src={isDark ? '/logo/night-logo.png' : '/logo/day-logo.png'}
-                alt="logo" className={styles.brandLogo} width="34" height="34" />
-              <div className={styles.brandText}>
-                <span className={styles.brandName}>Digital World</span>
-                <span className={styles.brandTagline}>zerosoils</span>
-              </div>
-            </div>
-
-            <div className={styles.formWrap}>
-              <div className={styles.social}>
-                <button type="button" className={styles.socialBtn} onClick={handleSocial}>
-                  <GoogleIcon /><span>Google</span>
-                </button>
-                <button type="button" className={styles.socialBtn} onClick={handleSocial}>
-                  <GithubIcon /><span>GitHub</span>
-                </button>
-              </div>
-
-              <AnimatePresence>
-                {socialMsg && (
-                  <motion.p className={styles.socialNote}
-                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                    transition={{ duration: 0.18 }}>
-                    {socialMsg}
-                  </motion.p>
-                )}
-              </AnimatePresence>
-
-              <div className={styles.divider}>
-                <span className={styles.dividerLine} />
-                <span className={styles.dividerText}>or email</span>
-                <span className={styles.dividerLine} />
-              </div>
-
-              <form className={styles.form} onSubmit={handleSubmit} noValidate>
-                <div className={styles.field}>
-                  <label className={styles.label} htmlFor="si-email">Email</label>
-                  <div className={styles.inputWrap}>
-                    <Mail size={15} className={styles.inputIcon} />
-                    <input id="si-email" className={styles.input} type="email"
-                      placeholder="you@example.com" autoComplete="email"
-                      value={email} onChange={e => setEmail(e.target.value)} />
-                  </div>
+              <div className={styles.brand}>
+                <img src={isDark ? '/logo/night-logo.png' : '/logo/day-logo.png'}
+                  alt="logo" className={styles.brandLogo} width="34" height="34" />
+                <div className={styles.brandText}>
+                  <span className={styles.brandName}>Digital World</span>
+                  <span className={styles.brandTagline}>zerosoils</span>
                 </div>
+              </div>
 
-                <div className={styles.field}>
-                  <label className={styles.label} htmlFor="si-pass">Password</label>
-                  <div className={styles.inputWrap}>
-                    <Lock size={15} className={styles.inputIcon} />
-                    <input id="si-pass" className={styles.input}
-                      type={showPw ? 'text' : 'password'}
-                      placeholder="••••••••" autoComplete="current-password"
-                      value={password} onChange={e => setPassword(e.target.value)} />
-                    <button type="button" className={styles.eyeBtn}
-                      onClick={() => setShowPw(v => !v)} tabIndex={-1}
-                      aria-label={showPw ? 'Hide password' : 'Show password'}>
-                      {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                  </div>
+              <div className={styles.formWrap}>
+                <div className={styles.social}>
+                  <button type="button" className={styles.socialBtn} onClick={handleSocial}>
+                    <GoogleIcon /><span>Google</span>
+                  </button>
+                  <button type="button" className={styles.socialBtn} onClick={handleSocial}>
+                    <GithubIcon /><span>GitHub</span>
+                  </button>
                 </div>
 
                 <AnimatePresence>
-                  {error && (
-                    <motion.p className={styles.error}
+                  {socialMsg && (
+                    <motion.p className={styles.socialNote}
                       initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                       transition={{ duration: 0.18 }}>
-                      {error}
+                      {socialMsg}
                     </motion.p>
                   )}
                 </AnimatePresence>
 
-                <button className={styles.submit} type="submit" disabled={loading}>
-                  {loading
-                    ? <span className={styles.spinner} aria-hidden="true" />
-                    : 'Sign In'
-                  }
-                </button>
-              </form>
+                <div className={styles.divider}>
+                  <span className={styles.dividerLine} />
+                  <span className={styles.dividerText}>or email</span>
+                  <span className={styles.dividerLine} />
+                </div>
 
-              <p className={styles.footer}>
-                New to the universe?{' '}
-                <button className={styles.footerLink} type="button" onClick={goToGenesis}>
-                  Create your identity →
-                </button>
-              </p>
-            </div>
-          </motion.div>
+                <form className={styles.form} onSubmit={handleSubmit} noValidate>
+                  <div className={styles.field}>
+                    <label className={styles.label} htmlFor="si-email">Email</label>
+                    <div className={styles.inputWrap}>
+                      <Mail size={15} className={styles.inputIcon} />
+                      <input id="si-email" className={styles.input} type="email"
+                        placeholder="you@example.com" autoComplete="email" autoFocus
+                        value={email} onChange={e => setEmail(e.target.value)} />
+                    </div>
+                  </div>
+
+                  <div className={styles.field}>
+                    <label className={styles.label} htmlFor="si-pass">Password</label>
+                    <div className={styles.inputWrap}>
+                      <Lock size={15} className={styles.inputIcon} />
+                      <input id="si-pass" className={styles.input}
+                        type={showPw ? 'text' : 'password'}
+                        placeholder="••••••••" autoComplete="current-password"
+                        value={password} onChange={e => setPassword(e.target.value)} />
+                      <button type="button" className={styles.eyeBtn}
+                        onClick={() => setShowPw(v => !v)} tabIndex={-1}
+                        aria-label={showPw ? 'Hide password' : 'Show password'}>
+                        {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <AnimatePresence>
+                    {error && (
+                      <motion.p className={styles.error}
+                        initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                        transition={{ duration: 0.18 }}>
+                        {error}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
+
+                  <button className={styles.submit} type="submit" disabled={loading}>
+                    {loading
+                      ? <span className={styles.spinner} aria-hidden="true" />
+                      : 'Sign In'
+                    }
+                  </button>
+                </form>
+
+                <p className={styles.footer}>
+                  New to the universe?{' '}
+                  <button className={styles.footerLink} type="button" onClick={goToGenesis}>
+                    Create your identity →
+                  </button>
+                </p>
+              </div>
+            </motion.div>
+          </FocusTrap>
         </motion.div>
       )}
     </AnimatePresence>

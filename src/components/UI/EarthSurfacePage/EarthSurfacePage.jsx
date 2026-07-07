@@ -5,6 +5,7 @@ import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useEarthStore } from '../../../store/earthStore'
 import { JARVIS_DNA } from '../../../data/jarvis.dna'
+import { PAGE } from '../../../lib/pages'
 import styles from './EarthSurfacePage.module.css'
 import EnvPanel from './EnvPanel'
 
@@ -223,11 +224,12 @@ export default function EarthSurfacePage() {
   const currentPage    = useEarthStore(s => s.currentPage)
   const setCurrentPage = useEarthStore(s => s.setCurrentPage)
 
-  const mapDivRef  = useRef(null)
-  const mapRef     = useRef(null)
-  const posRef     = useRef([DEFAULT_LAT, DEFAULT_LON])
-  const gpsRef     = useRef(null)
-  const watchIdRef = useRef(null)
+  const mapDivRef       = useRef(null)
+  const mapRef          = useRef(null)
+  const posRef          = useRef([DEFAULT_LAT, DEFAULT_LON])
+  const gpsRef          = useRef(null)
+  const gpsAcquiredRef  = useRef(false)
+  const watchIdRef      = useRef(null)
   const keysRef    = useRef({})
   const rafRef     = useRef(null)
   const dirRef     = useRef('s')
@@ -301,14 +303,14 @@ export default function EarthSurfacePage() {
   // ── GPS — initial fix + continuous watch ─────────────────────────────────────
   useEffect(() => {
     if (currentPage !== 'earth-surface') return
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!navigator.geolocation) { setLocStatus('unavailable'); return }
 
-    setLocStatus('requesting')
+    if (!gpsAcquiredRef.current) setLocStatus('requesting')
 
     navigator.geolocation.getCurrentPosition(
       ({ coords: c }) => {
         const lat = c.latitude, lon = c.longitude
+        gpsAcquiredRef.current = true
         gpsRef.current = [lat, lon]
         posRef.current = [lat, lon]
         setCoords({ lat, lon })
@@ -325,10 +327,15 @@ export default function EarthSurfacePage() {
 
     watchIdRef.current = navigator.geolocation.watchPosition(
       ({ coords: c }) => {
+        gpsAcquiredRef.current = true
         gpsRef.current = [c.latitude, c.longitude]
         setLocStatus('live')
       },
-      null,
+      (err) => {
+        console.warn('GPS watch error:', err.message)
+        gpsAcquiredRef.current = false
+        setLocStatus('home')
+      },
       { enableHighAccuracy: true, maximumAge: 5000 }
     )
 
@@ -384,15 +391,16 @@ export default function EarthSurfacePage() {
 
         let [lat, lon] = posRef.current
         let nd = dirRef.current
+        const lonFactor = Math.max(Math.cos(lat * Math.PI / 180), 0.01)
 
-        if      (up && lt)  { lat += dg; lon -= dg; nd = 'nw' }
-        else if (up && rt)  { lat += dg; lon += dg; nd = 'ne' }
-        else if (dn && lt)  { lat -= dg; lon -= dg; nd = 'sw' }
-        else if (dn && rt)  { lat -= dg; lon += dg; nd = 'se' }
-        else if (up)        { lat += spd;            nd = 'n'  }
-        else if (dn)        { lat -= spd;            nd = 's'  }
-        else if (lt)        { lon -= spd;            nd = 'w'  }
-        else if (rt)        { lon += spd;            nd = 'e'  }
+        if      (up && lt)  { lat += dg; lon -= dg / lonFactor; nd = 'nw' }
+        else if (up && rt)  { lat += dg; lon += dg / lonFactor; nd = 'ne' }
+        else if (dn && lt)  { lat -= dg; lon -= dg / lonFactor; nd = 'sw' }
+        else if (dn && rt)  { lat -= dg; lon += dg / lonFactor; nd = 'se' }
+        else if (up)        { lat += spd;                        nd = 'n'  }
+        else if (dn)        { lat -= spd;                        nd = 's'  }
+        else if (lt)        { lon -= spd / lonFactor;            nd = 'w'  }
+        else if (rt)        { lon += spd / lonFactor;            nd = 'e'  }
 
         lat = Math.max(-85, Math.min(85, lat))
         lon = ((lon + 180) % 360 + 360) % 360 - 180
@@ -463,7 +471,7 @@ export default function EarthSurfacePage() {
 
   return (
     <AnimatePresence>
-      {currentPage === 'earth-surface' && (
+      {currentPage === PAGE.EARTH_SURFACE && (
         <motion.div
           key="earth-surface"
           className={styles.page}
@@ -492,7 +500,7 @@ export default function EarthSurfacePage() {
           {/* ════ HUD ════ */}
 
           <div className={styles.hudTL}>
-            <button className={styles.backBtn} onClick={() => setCurrentPage('earth-hero')}>
+            <button className={styles.backBtn} onClick={() => setCurrentPage(PAGE.EARTH_HERO)}>
               <ArrowLeft size={14} /> Earth
             </button>
             <div className={styles.titleChip}>

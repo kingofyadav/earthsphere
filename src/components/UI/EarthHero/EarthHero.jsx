@@ -1,124 +1,21 @@
-import { useMemo, useRef, Suspense, useEffect } from 'react'
+import { useMemo, useRef, useState, useEffect, Suspense } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useTexture, OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  X, ExternalLink, Shield, MapPin, Cpu,
-  Link2, Building2, Users,
-  ArrowRight, MessageCircle, Monitor, Globe2,
-  Mail, Phone, Landmark, TrendingUp, Eye,
+  Search, Mic, ArrowRight, ArrowLeft, Monitor, Globe2, Globe,
+  Shield, MessageCircle, Users, MapPin,
+  Wallet, FileText, FolderOpen, LayoutDashboard, Hash, ExternalLink,
 } from 'lucide-react'
 import { useEarthStore } from '../../../store/earthStore'
 import { useAuthStore } from '../../../store/authStore'
-import { useNationStore } from '../../../store/nationStore'
-import { JARVIS_DNA } from '../../../data/jarvis.dna'
+import { initAudio, playSfx } from '../../../lib/audio'
+import { classify, prettyHost, webSearchUrl, openDeviceFile } from '../../../lib/magicSearch'
+import { PAGE } from '../../../lib/pages'
 import styles from './EarthHero.module.css'
 
-// ── Digital matrix rain ───────────────────────────────────────────────────────
-const MATRIX_CHARS = '01アイウエオ∑∏∆∇∈∉√∞∟∠∧∨∩∪∫∴∵≠≡≤≥⊂⊃⊄⊆⊇⊕⊗⊘'
-
-function MatrixRain() {
-  const canvasRef = useRef()
-
-  useEffect(() => {
-    const el = canvasRef.current
-    if (!el) return
-    const ctx = el.getContext('2d')
-    const fontSize = 11
-    let cols, drops, animId
-
-    function resize() {
-      el.width  = el.offsetWidth
-      el.height = el.offsetHeight
-      cols  = Math.floor(el.width / fontSize)
-      drops = Array(cols).fill(1)
-    }
-
-    resize()
-    const ro = new ResizeObserver(resize)
-    ro.observe(el)
-
-    function draw() {
-      ctx.fillStyle = 'rgba(2,8,18,0.06)'
-      ctx.fillRect(0, 0, el.width, el.height)
-      ctx.font = `${fontSize}px 'Space Mono', monospace`
-      for (let i = 0; i < drops.length; i++) {
-        const ch = MATRIX_CHARS[Math.floor(Math.random() * MATRIX_CHARS.length)]
-        const bright = Math.random() > 0.95
-        ctx.fillStyle = bright ? 'rgba(147,197,253,0.55)' : 'rgba(77,166,255,0.14)'
-        ctx.fillText(ch, i * fontSize, drops[i] * fontSize)
-        if (drops[i] * fontSize > el.height && Math.random() > 0.974) drops[i] = 0
-        drops[i]++
-      }
-      animId = requestAnimationFrame(draw)
-    }
-
-    draw()
-    return () => { cancelAnimationFrame(animId); ro.disconnect() }
-  }, [])
-
-  return <canvas ref={canvasRef} className={styles.matrixCanvas} aria-hidden="true" />
-}
-
-// ── Hub links for kingofyadav.in (Jarvis fallback) ────────────────────────────
-const HUB = [
-  { emoji: '✍️', label: 'Blog',         sub: 'Writing & essays',      href: 'https://kingofyadav.in/pages/blog.html' },
-  { emoji: '💼', label: 'Professional', sub: 'Work & skills',          href: 'https://kingofyadav.in/pages/professional.html' },
-  { emoji: '🤝', label: 'Collaborate',  sub: 'Partner on a project',   href: 'https://kingofyadav.in/pages/collaboration.html' },
-  { emoji: '⚙️', label: 'Services',     sub: 'Digital systems & AI',   href: 'https://kingofyadav.in/pages/services.html' },
-  { emoji: '💳', label: 'Wallet',       sub: 'HI Coin & assets',       href: 'https://kingofyadav.in/wallet/' },
-  { emoji: '📬', label: 'Contact',      sub: 'Get in touch',           href: 'https://kingofyadav.in/pages/contact.html' },
-]
-
-const ASSET_ICON = {
-  domain:       <Link2 size={11} />,
-  wallet:       <Landmark size={11} />,
-  credential:   <Shield size={11} />,
-  document:     <Building2 size={11} />,
-  business:     <Building2 size={11} />,
-  organization: <Users size={11} />,
-  community:    <Users size={11} />,
-}
-
-const TRUST_LABELS = ['Unverified', 'Self-Sovereign', 'Public Verified', 'Chain Stamped']
-
-// ── Trust helpers (mirrored from HDIPage) ─────────────────────────────────────
-function trustLabel(score) {
-  if (score < 200) return 'Unverified'
-  if (score < 400) return 'Emerging'
-  if (score < 600) return 'Established'
-  if (score < 800) return 'Trusted'
-  return 'Sovereign'
-}
-function computeTrustScore(verif = {}, rels = [], assets = {}, rec = {}) {
-  let s = 100
-  if (verif.email)       s += 100
-  if (verif.phone)       s += 150
-  if (verif.govId)       s += 150
-  if (verif.employer)    s += 100
-  if (verif.university)  s += 100
-  if (verif.socialTrust) s += 100
-  s += Math.min(rels.length * 10, 50)
-  s += Math.min(Object.values(assets).reduce((t, a) => t + (a?.length || 0), 0) * 10, 50)
-  s += Object.values(rec).filter(Boolean).length * 25
-  return Math.min(s, 1000)
-}
-
-const VERIF_BADGE_META = {
-  email:       { label: 'Email',    Icon: Mail },
-  phone:       { label: 'Phone',    Icon: Phone },
-  govId:       { label: 'Gov ID',   Icon: Shield },
-  employer:    { label: 'Employer', Icon: Building2 },
-  university:  { label: 'Uni',      Icon: Building2 },
-  socialTrust: { label: 'Social',   Icon: Users },
-}
-
-function assetDisplayLabel(a) {
-  return a.name || a.label || a.title || a.url
-    || (a.address ? a.address.slice(0, 10) + '…' : null)
-    || a._type || 'Asset'
-}
+function openExt(url) { window.open(url, '_blank', 'noopener,noreferrer') }
 
 // ── Geo helpers ───────────────────────────────────────────────────────────────
 function toVec3(lat, lon, r) {
@@ -154,7 +51,7 @@ const CITIES = [
 
 function ArcNetwork({ R = 2.86 }) {
   const pulseRefs = useRef([])
-  const { curves, lineObjects } = useMemo(() => {
+  const { curves, lineObjects, mat } = useMemo(() => {
     const mat = new THREE.LineBasicMaterial({
       color: '#4da6ff', transparent: true, opacity: 0.18,
       blending: THREE.AdditiveBlending, depthWrite: false,
@@ -169,16 +66,20 @@ function ArcNetwork({ R = 2.86 }) {
       const geo = new THREE.BufferGeometry().setFromPoints(c.getPoints(80))
       return new THREE.Line(geo, mat)
     })
-    return { curves, lineObjects }
+    return { curves, lineObjects, mat }
   }, [R])
+
+  useEffect(() => () => {
+    lineObjects.forEach(l => l.geometry.dispose())
+    mat.dispose()
+  }, [lineObjects, mat])
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime
     pulseRefs.current.forEach((mesh, i) => {
       if (!mesh || !curves[i]) return
       const speed  = 0.09 + (i % 7) * 0.007
-      const offset = i / LINKS.length
-      mesh.position.copy(curves[i].getPoint((t * speed + offset) % 1))
+      mesh.position.copy(curves[i].getPoint((t * speed + i / LINKS.length) % 1))
     })
   })
 
@@ -199,35 +100,26 @@ function ArcNetwork({ R = 2.86 }) {
 function CityNodes({ R = 2.87 }) {
   const nodeRefs = useRef([])
   const positions = useMemo(() => CITIES.map(([lat, lon]) => toVec3(lat, lon, R)), [R])
-
   useFrame(({ clock }) => {
     const s = Math.sin(clock.elapsedTime * 1.8) * 0.5 + 0.5
     nodeRefs.current.forEach((m, i) => {
       if (!m) return
-      m.material.color.set(i === CITIES.length - 1 ? '#FF9933' : '#7dd3fc')
       m.material.opacity = 0.12 + s * (i === CITIES.length - 1 ? 0.5 : 0.14)
     })
   })
-
   return (
     <group>
       {positions.map((pos, i) => (
         <group key={i} position={pos}>
           <mesh>
             <sphereGeometry args={[i === CITIES.length - 1 ? 0.038 : 0.022, 8, 8]} />
-            <meshBasicMaterial
-              color={i === CITIES.length - 1 ? '#FF9933' : '#7dd3fc'}
-              transparent opacity={0.95}
-              blending={THREE.AdditiveBlending} depthWrite={false}
-            />
+            <meshBasicMaterial color={i === CITIES.length - 1 ? '#FF9933' : '#7dd3fc'}
+              transparent opacity={0.95} blending={THREE.AdditiveBlending} depthWrite={false} />
           </mesh>
           <mesh ref={el => { nodeRefs.current[i] = el }}>
             <sphereGeometry args={[i === CITIES.length - 1 ? 0.08 : 0.05, 8, 8]} />
-            <meshBasicMaterial
-              color={i === CITIES.length - 1 ? '#FF9933' : '#4da6ff'}
-              transparent opacity={0.2}
-              blending={THREE.AdditiveBlending} depthWrite={false}
-            />
+            <meshBasicMaterial color={i === CITIES.length - 1 ? '#FF9933' : '#4da6ff'}
+              transparent opacity={0.2} blending={THREE.AdditiveBlending} depthWrite={false} />
           </mesh>
         </group>
       ))}
@@ -238,24 +130,24 @@ function CityNodes({ R = 2.87 }) {
 const SPHERE_R = 2.8
 
 function AutoFitCamera() {
-  const { camera, size } = useThree()
+  const { camera, size, invalidate } = useThree()
   useEffect(() => {
     if (!camera.isPerspectiveCamera) return
     const fovRad = (camera.fov * Math.PI) / 180
     const aspect = size.width / size.height
-    const fill   = aspect >= 0.7 ? 0.47 : 0.39
+    const fill   = aspect >= 0.7 ? 0.52 : 0.42
     const dim    = aspect >= 0.7 ? 1 : aspect
     const dist   = (SPHERE_R * 2) / (fill * dim * 2 * Math.tan(fovRad / 2))
-    // eslint-disable-next-line react-hooks/immutability
     camera.position.z = Math.max(8.0, Math.min(17.0, dist))
-  }, [size.width, size.height, camera])
+    invalidate()
+  }, [size.width, size.height, camera, invalidate])
   return null
 }
 
+// ── Left: Virtual dot-globe ───────────────────────────────────────────────────
 function DotGlobe() {
   const groupRef = useRef()
   const [dayMap] = useTexture(['/textures/earth_day.jpg'])
-
   useFrame(() => { if (groupRef.current) groupRef.current.rotation.y += 0.0009 })
 
   const dotShader = useMemo(() => ({
@@ -295,7 +187,7 @@ function DotGlobe() {
   return (
     <group ref={groupRef} rotation={[0.35, 0, 0]}>
       <points>
-        <sphereGeometry args={[2.8, 480, 240]} />
+        <sphereGeometry args={[2.8, 128, 64]} />
         <shaderMaterial args={[dotShader]} transparent depthWrite={false} blending={THREE.AdditiveBlending} />
       </points>
       <ArcNetwork />
@@ -312,70 +204,174 @@ function DotGlobe() {
   )
 }
 
+// ── Right: Real textured Earth ────────────────────────────────────────────────
+function RealEarth() {
+  const earthRef  = useRef()
+  const cloudsRef = useRef()
+  const [dayMap, cloudsMap, normalMap] = useTexture([
+    '/textures/earth_day.jpg',
+    '/textures/earth_clouds.jpg',
+    '/textures/earth_normal.png',
+  ])
+  useEffect(() => {
+    [dayMap, cloudsMap, normalMap].forEach(m => { if (m) { m.anisotropy = 16; m.needsUpdate = true } })
+  }, [dayMap, cloudsMap, normalMap])
+
+  useFrame(() => {
+    if (earthRef.current)  earthRef.current.rotation.y  += 0.0011
+    if (cloudsRef.current) cloudsRef.current.rotation.y += 0.00045
+  })
+
+  return (
+    <group rotation={[0.3, 0, 0]}>
+      <mesh ref={earthRef}>
+        <sphereGeometry args={[2.8, 128, 128]} />
+        <meshStandardMaterial
+          map={dayMap} normalMap={normalMap} normalScale={[0.7, 0.7]}
+          roughness={0.85} metalness={0.0} dithering
+        />
+      </mesh>
+      <mesh ref={cloudsRef}>
+        <sphereGeometry args={[2.85, 128, 128]} />
+        <meshStandardMaterial map={cloudsMap} transparent opacity={0.42} depthWrite={false} dithering />
+      </mesh>
+      {/* atmosphere */}
+      <mesh>
+        <sphereGeometry args={[2.98, 64, 64]} />
+        <meshBasicMaterial color="#4da6ff" transparent opacity={0.14} side={THREE.BackSide} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+      <mesh>
+        <sphereGeometry args={[3.2, 64, 64]} />
+        <meshBasicMaterial color="#2a7fff" transparent opacity={0.06} side={THREE.BackSide} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+    </group>
+  )
+}
+
+// ── Voice-to-text (Web Speech API) ────────────────────────────────────────────
+function useVoiceInput(onText) {
+  const [listening, setListening] = useState(false)
+  const recRef = useRef(null)
+  const supported = typeof window !== 'undefined' &&
+    (window.SpeechRecognition || window.webkitSpeechRecognition)
+
+  useEffect(() => {
+    if (!supported) return
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    const rec = new SR()
+    rec.continuous = false
+    rec.interimResults = true
+    rec.lang = 'en-US'
+    rec.onresult = (e) => {
+      const text = Array.from(e.results).map(r => r[0].transcript).join('')
+      onText(text)
+    }
+    rec.onend = () => setListening(false)
+    rec.onerror = () => setListening(false)
+    recRef.current = rec
+    return () => { try { rec.abort() } catch { /* noop */ } }
+  }, [supported, onText])
+
+  function toggle() {
+    if (!supported || !recRef.current) return
+    if (listening) { recRef.current.stop(); setListening(false); return }
+    try { recRef.current.start(); setListening(true) } catch { /* already started */ }
+  }
+
+  return { supported: Boolean(supported), listening, toggle }
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function EarthHero() {
   const currentPage    = useEarthStore(s => s.currentPage)
   const setCurrentPage = useEarthStore(s => s.setCurrentPage)
   const openJarvisChat = useEarthStore(s => s.openJarvisChat)
+  const authAssets     = useAuthStore(s => s.assets)
 
-  const isLoggedIn    = useAuthStore(s => s.isLoggedIn)
-  const user          = useAuthStore(s => s.user)
-  const verifications = useAuthStore(s => s.verifications)
-  const disclosure    = useAuthStore(s => s.disclosure)
-  const authAssets    = useAuthStore(s => s.assets)
-  const relationships = useAuthStore(s => s.relationships)
-  const recovery      = useAuthStore(s => s.recovery)
-  const openLoginModal = useAuthStore(s => s.openLoginModal)
+  const [query, setQuery] = useState('')
+  const voice = useVoiceInput(setQuery)
+  const inputRef = useRef(null)
+  const fileInputRef = useRef(null)
 
-  const nations = useNationStore(s => s.nations)
+  const goJarvis = () => { setCurrentPage(null); openJarvisChat() }
 
-  const { identity, location, assets: jAssets, agent, surface } = JARVIS_DNA
+  // Apps: in-app pages + external web apps
+  const APPS = useMemo(() => [
+    { id: 'hdi',     label: 'HDI Profile',       desc: 'Your sovereign identity', Icon: Shield,        keys: 'hdi identity profile trust passport', run: () => setCurrentPage(PAGE.HDI) },
+    { id: 'world',   label: 'World Nations',     desc: 'Community & nations',      Icon: Users,         keys: 'world nations community citizens', run: () => setCurrentPage(PAGE.WORLD) },
+    { id: 'surface', label: 'Surface Workspace', desc: 'White workspace',          Icon: Monitor,       keys: 'surface workspace white apps build', run: () => setCurrentPage(PAGE.SURFACE) },
+    { id: 'earth',   label: 'Earth Surface Map', desc: 'Claim territory zones',    Icon: Globe2,        keys: 'earth surface map territory claim zone', run: () => setCurrentPage(PAGE.EARTH_SURFACE) },
+    { id: 'jarvis',  label: 'Ask Jarvis AI',     desc: 'Talk to your agent',       Icon: MessageCircle, keys: 'jarvis ai chat assistant ask', run: goJarvis },
+    { id: 'chat',    label: 'Chat Terminal',     desc: 'chat.zerosoils.com',       Icon: MessageCircle, keys: 'chat terminal message app', run: () => openExt('https://chat.zerosoils.com') },
+    { id: 'wallet',  label: 'Wallet',            desc: 'kingofyadav.in/wallet',    Icon: Wallet,        keys: 'wallet coin money assets rupeecoin', run: () => openExt('https://kingofyadav.in/wallet/') },
+    { id: 'site',    label: 'Profile Site',      desc: 'kingofyadav.in',           Icon: ExternalLink,  keys: 'profile website portfolio blog', run: () => openExt('https://kingofyadav.in') },
+  ], [setCurrentPage]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Dynamic derivations ───────────────────────────────────────────────────
-  const trustScore = useMemo(() =>
-    isLoggedIn ? computeTrustScore(verifications, relationships, authAssets, recovery) : 0,
-    [isLoggedIn, verifications, relationships, authAssets, recovery]
-  )
-  const trustSegs = trustScore < 200 ? 0 : trustScore < 400 ? 1 : trustScore < 600 ? 2 : trustScore < 800 ? 3 : 4
+  // Files: the user's HDI assets, searchable
+  const FILES = useMemo(() => {
+    const out = []
+    ;(authAssets?.documents   || []).forEach(d => out.push({ id: 'f-doc-'  + d.id, label: d.title || d.name || 'Document', desc: 'Document',   Icon: FileText, run: () => setCurrentPage(PAGE.HDI) }))
+    ;(authAssets?.credentials || []).forEach(c => out.push({ id: 'f-cred-' + c.id, label: c.name || 'Credential',         desc: 'Credential', Icon: Shield,   run: () => setCurrentPage(PAGE.HDI) }))
+    ;(authAssets?.domains     || []).forEach(d => out.push({ id: 'f-dom-'  + d.id, label: d.name,                          desc: 'Domain',     Icon: Globe,    run: () => d.name && openExt('https://' + d.name.replace(/^https?:\/\//, '')) }))
+    ;(authAssets?.wallets     || []).forEach(w => out.push({ id: 'f-wal-'  + w.id, label: w.label || w.address,            desc: 'Wallet',     Icon: Wallet,   run: () => setCurrentPage(PAGE.HDI) }))
+    return out
+  }, [authAssets, setCurrentPage])
 
-  const activeVerifs = useMemo(() =>
-    Object.entries(verifications).filter(([, v]) => v).map(([k]) => k),
-    [verifications]
-  )
+  // Dot commands — config-like shortcuts (type "." to list them all)
+  const DOT = useMemo(() => [
+    { name: 'profile',   label: 'Profile',       desc: 'Open HDI identity',       Icon: Shield,          run: () => setCurrentPage(PAGE.HDI) },
+    { name: 'dashboard', label: 'Dashboard',     desc: 'Solar system overview',   Icon: LayoutDashboard, run: () => setCurrentPage(null) },
+    { name: 'world',     label: 'World',         desc: 'Nations & community',     Icon: Users,           run: () => setCurrentPage(PAGE.WORLD) },
+    { name: 'surface',   label: 'Surface',       desc: 'White workspace',         Icon: Monitor,         run: () => setCurrentPage(PAGE.SURFACE) },
+    { name: 'earth',     label: 'Earth Surface', desc: 'Territory map',           Icon: Globe2,          run: () => setCurrentPage(PAGE.EARTH_SURFACE) },
+    { name: 'claim',     label: 'Claim',         desc: 'Claim territory',         Icon: MapPin,          run: () => setCurrentPage(PAGE.EARTH_SURFACE) },
+    { name: 'wallet',    label: 'Wallet',        desc: 'Open your wallet',        Icon: Wallet,          run: () => openExt('https://kingofyadav.in/wallet/') },
+    { name: 'jarvis',    label: 'Jarvis',        desc: 'Ask the AI agent',        Icon: MessageCircle,   run: goJarvis },
+    { name: 'file',      label: 'File',          desc: 'Open a file from device', Icon: FolderOpen,      run: () => openDeviceFile(fileInputRef.current) },
+    { name: 'web',       label: 'Web',           desc: 'Search the internet',     Icon: Globe,           run: () => openExt('https://duckduckgo.com') },
+    { name: 'help',      label: 'Help',          desc: 'List all . commands',     Icon: Hash,            run: () => setQuery('.') },
+  ], [setCurrentPage]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const myNations = useMemo(() => {
-    if (!isLoggedIn || !user?.hdi) return []
-    return nations.filter(n => n.citizen_hids.includes(user.hdi) && n.status === 'active')
-  }, [nations, isLoggedIn, user])
+  const results = useMemo(() => {
+    const c = classify(query)
+    if (c.mode === 'dot') {
+      return DOT
+        .filter(d => !c.term || d.name.startsWith(c.term) || d.label.toLowerCase().includes(c.term))
+        .map(d => ({ id: 'dot-' + d.name, label: d.label, desc: d.desc, Icon: d.Icon, badge: '.' + d.name, run: d.run }))
+    }
+    if (c.mode === 'url') {
+      return [{ id: 'url', label: `Open ${prettyHost(c.url)}`, desc: c.url, Icon: Globe, badge: 'WEB', run: () => openExt(c.url) }]
+    }
+    if (c.mode === 'search') {
+      const local = [...APPS, ...FILES].filter(x =>
+        (x.label + ' ' + (x.keys || '') + ' ' + (x.desc || '')).toLowerCase().includes(c.term)
+      )
+      const web = { id: 'web', label: `Search the web for “${c.raw}”`, desc: 'DuckDuckGo', Icon: Search, badge: 'WEB', run: () => openExt(webSearchUrl(c.raw)) }
+      return [...local, web]
+    }
+    return APPS // browse
+  }, [query, APPS, FILES, DOT])
 
-  const publicAssets = useMemo(() => {
-    if (!isLoggedIn) return []
-    const flat = []
-    ;(authAssets.domains     || []).forEach(d => flat.push({ ...d, _type: 'domain'     }))
-    ;(authAssets.wallets     || []).forEach(w => flat.push({ ...w, _type: 'wallet'     }))
-    ;(authAssets.credentials || []).forEach(c => flat.push({ ...c, _type: 'credential' }))
-    ;(authAssets.documents   || []).forEach(d => flat.push({ ...d, _type: 'document'   }))
-    return flat
-  }, [isLoggedIn, authAssets])
-
-  const displayName = isLoggedIn
-    ? (disclosure.name ? (user?.name || 'Traveler') : 'Anonymous Traveler')
-    : identity.display_name
-  const handle = isLoggedIn ? (user?.hdi || '@anonymous') : identity.handle
-  const avatarLetter = isLoggedIn
-    ? (disclosure.name && user?.name ? user.name[0].toUpperCase() : '?')
-    : identity.display_name[0].toUpperCase()
-
-  function handleHDI() {
-    if (isLoggedIn) { setCurrentPage('hdi') } else { setCurrentPage(null); openLoginModal() }
+  function runResult(cmd) {
+    if (!cmd) return
+    initAudio(); playSfx('click')
+    cmd.run()
   }
-  function handleAskJarvis() { setCurrentPage(null); openJarvisChat() }
-  function handleSurface()      { setCurrentPage('surface') }
-  function handleEarthSurface() { setCurrentPage('earth-surface') }
+
+  function handleSubmit(e) {
+    e.preventDefault()
+    runResult(results[0])
+  }
+
+  function handleMic() {
+    initAudio()
+    inputRef.current?.focus()
+    voice.toggle()
+  }
 
   return (
     <AnimatePresence>
-      {currentPage === 'earth-hero' && (
+      {currentPage === PAGE.EARTH_HERO && (
         <motion.div
           key="earth-hero"
           className={styles.container}
@@ -384,469 +380,111 @@ export default function EarthHero() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.4 }}
         >
+          <button className={styles.backBtn} onClick={() => setCurrentPage(null)} aria-label="Back to Solar System">
+            <ArrowLeft size={13} /><span>Solar System</span>
+          </button>
 
-          {/* ── Header ── */}
-          <header className={styles.header}>
-            <div className={styles.nodeId}>
-              <span className={styles.liveDot} />
-              <span className={styles.nodeLabel}>EARTH</span>
-              <span className={styles.nodeSep}>·</span>
-              <span className={styles.nodeHandle}>{handle}</span>
-              {isLoggedIn
-                ? <span className={styles.nodeVersion}>TRUST {trustScore}</span>
-                : <span className={styles.nodeVersion}>NODE #1</span>
-              }
-            </div>
+          {/* ── Three sections: Virtual · Search · Real ── */}
+          <div className={styles.sections}>
 
-            <p className={styles.headerTagline}>
-              {isLoggedIn
-                ? `${activeVerifs.length} verified · ${publicAssets.length} assets · ${myNations.length} nations`
-                : 'First User on the Internet'}
-            </p>
+            {/* Left — Virtual World */}
+            <section className={`${styles.section} ${styles.virtualSection}`}>
+              <div className={styles.sectionCanvas}>
+                <Canvas camera={{ position: [0, 0, 11.6], fov: 54 }} gl={{ antialias: true, alpha: true }} style={{ background: 'transparent' }}>
+                  <AutoFitCamera />
+                  <Suspense fallback={null}><DotGlobe /></Suspense>
+                  <OrbitControls enableZoom={false} enablePan={false} autoRotate={false} minPolarAngle={Math.PI * 0.25} maxPolarAngle={Math.PI * 0.75} />
+                </Canvas>
+              </div>
+              <div className={styles.sectionTag}>
+                <span className={styles.tagDot} style={{ background: '#4da6ff' }} />
+                VIRTUAL WORLD
+              </div>
+            </section>
 
-            <div className={styles.headerRight}>
-              {!isLoggedIn && (
-                <a
-                  href="https://kingofyadav.in"
-                  target="_blank" rel="noopener noreferrer"
-                  className={styles.profileBtn}
-                >
-                  kingofyadav.in <ExternalLink size={11} />
-                </a>
-              )}
-              <button className={styles.closeBtn} onClick={() => setCurrentPage(null)} aria-label="Close">
-                <X size={16} />
-              </button>
-            </div>
-          </header>
+            {/* Middle — Clean search (mobile-first) */}
+            <section className={`${styles.section} ${styles.searchSection}`}>
+              <div className={styles.searchInner}>
+                <h1 className={styles.searchTitle}>Magic Search</h1>
 
-          {/* ── Body: 3 columns ── */}
-          <div className={styles.body}>
+                <form className={styles.searchBox} onSubmit={handleSubmit}>
+                  <Search size={16} className={styles.searchIcon} aria-hidden="true" />
+                  <input
+                    ref={inputRef}
+                    className={styles.searchInput}
+                    type="text"
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                    placeholder="Search or type . for commands…"
+                    aria-label="Magic search"
+                    autoComplete="off"
+                    autoCapitalize="off"
+                    spellCheck="false"
+                  />
+                  {voice.supported && (
+                    <button
+                      type="button"
+                      className={`${styles.micBtn} ${voice.listening ? styles.micListening : ''}`}
+                      onClick={handleMic}
+                      aria-label={voice.listening ? 'Stop listening' : 'Speak'}
+                      aria-pressed={voice.listening}
+                    >
+                      <Mic size={15} />
+                    </button>
+                  )}
+                </form>
 
-            {/* ── Left: Public HDI ── */}
-            <aside className={styles.leftPanel}>
-              <div className={styles.panelInner}>
+                {voice.listening && <p className={styles.listeningHint}>Listening…</p>}
 
-                <div className={styles.panelEyebrow}>
-                  <Shield size={10} />
-                  {isLoggedIn ? 'YOUR IDENTITY · HID' : 'SOVEREIGN IDENTITY · HID'}
-                </div>
-
-                {/* Avatar */}
-                <div className={styles.hdiHero}>
-                  <div className={styles.hdiAvatar}>
-                    {avatarLetter}
-                    {!isLoggedIn && <span className={styles.hdiFlag}>{location.flag}</span>}
-                  </div>
-                  <div className={styles.hdiNames}>
-                    <h2 className={styles.hdiDisplay}>{displayName}</h2>
-                    {!isLoggedIn && <p className={styles.hdiFullName}>{identity.name}</p>}
-                    <code className={styles.hdiHandle}>{handle}</code>
-                  </div>
-                </div>
-
-                {/* Trust */}
-                {isLoggedIn ? (
-                  <div className={styles.trustBlock}>
-                    <p className={styles.fieldLabel}>Trust Score · {trustScore} / 1000</p>
-                    <div className={styles.trustRow}>
-                      {[0,1,2,3].map(i => (
-                        <span key={i} className={`${styles.trustSeg} ${i < trustSegs ? styles.trustSegActive : ''}`} />
-                      ))}
-                      <span className={styles.trustLabel}>{trustLabel(trustScore)}</span>
-                    </div>
-                  </div>
-                ) : (
+                {/* Hints + results appear only once the user starts typing */}
+                {query.trim() && (
                   <>
-                    <div className={styles.verifiedBadge}>
-                      <span className={styles.verifiedTick}>✓</span>
-                      <span>VERIFIED</span>
-                      <span className={styles.verifiedType}>SELF-SOVEREIGN</span>
-                    </div>
-                    <div className={styles.trustBlock}>
-                      <p className={styles.fieldLabel}>Trust Level</p>
-                      <div className={styles.trustRow}>
-                        {[0,1,2,3].map(i => (
-                          <span key={i} className={`${styles.trustSeg} ${i <= identity.trust_level ? styles.trustSegActive : ''}`} />
-                        ))}
-                        <span className={styles.trustLabel}>{TRUST_LABELS[identity.trust_level]}</span>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* Verified source badges (logged in) */}
-                {isLoggedIn && activeVerifs.length > 0 && (
-                  <div className={styles.fieldBlock}>
-                    <p className={styles.fieldLabel}>Verified Sources · {activeVerifs.length}</p>
-                    <div className={styles.verifBadges}>
-                      {activeVerifs.map(key => {
-                        const m = VERIF_BADGE_META[key]
-                        if (!m) return null
-                        const Ic = m.Icon
-                        return (
-                          <span key={key} className={styles.verifBadge}>
-                            <Ic size={9} /> {m.label}
-                          </span>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Public contact (based on disclosure) */}
-                {isLoggedIn && (disclosure.email || disclosure.phone) && (
-                  <div className={styles.fieldBlock}>
-                    <p className={styles.fieldLabel}>Public Contact</p>
-                    {disclosure.email && user?.email && (
-                      <div className={styles.contactRow}>
-                        <Mail size={11} className={styles.contactIcon} />
-                        <span>{user.email}</span>
-                      </div>
-                    )}
-                    {disclosure.phone && user?.phone && (
-                      <div className={styles.contactRow}>
-                        <Phone size={11} className={styles.contactIcon} />
-                        <span>{user.phone}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Location (JARVIS fallback) */}
-                {!isLoggedIn && (
-                  <div className={styles.fieldBlock}>
-                    <p className={styles.fieldLabel}>Location</p>
-                    <div className={styles.locationRow}>
-                      <MapPin size={12} className={styles.locIcon} />
-                      <span>{location.city}, {location.country}</span>
-                    </div>
-                    <p className={styles.coords}>
-                      {location.lat.toFixed(4)}°N &nbsp;·&nbsp; {location.lng.toFixed(4)}°E
-                    </p>
-                  </div>
-                )}
-
-                {/* Assets */}
-                {isLoggedIn ? (
-                  publicAssets.length > 0 ? (
-                    <div className={styles.fieldBlock}>
-                      <p className={styles.fieldLabel}>Public Assets · {publicAssets.length}</p>
-                      <ul className={styles.assetList}>
-                        {publicAssets.slice(0, 5).map(a => (
-                          <li key={a.id} className={styles.assetRow}>
-                            <span className={styles.assetIcon}>{ASSET_ICON[a._type] || <Link2 size={11} />}</span>
-                            <span className={styles.assetLabel}>{assetDisplayLabel(a)}</span>
-                            {a.url && (
-                              <a href={a.url} target="_blank" rel="noopener noreferrer" className={styles.assetLink} aria-label="Visit">
-                                <ExternalLink size={10} />
-                              </a>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : (
-                    <div className={styles.fieldBlock}>
-                      <p className={styles.fieldLabel}>Assets</p>
-                      <p className={styles.emptyNote}>No assets added yet. Add wallets, domains, and credentials in your HDI profile.</p>
-                    </div>
-                  )
-                ) : (
-                  <div className={styles.fieldBlock}>
-                    <p className={styles.fieldLabel}>Public Assets · {jAssets.length}</p>
-                    <ul className={styles.assetList}>
-                      {jAssets.map(a => (
-                        <li key={a.id} className={styles.assetRow}>
-                          <span className={styles.assetIcon}>{ASSET_ICON[a.type]}</span>
-                          <span className={styles.assetLabel}>{a.label}</span>
-                          {a.url && (
-                            <a href={a.url} target="_blank" rel="noopener noreferrer" className={styles.assetLink} aria-label={`Visit ${a.label}`}>
-                              <ExternalLink size={10} />
-                            </a>
-                          )}
+                    <ul className={styles.results}>
+                      {results.map(cmd => (
+                        <li key={cmd.id}>
+                          <button className={styles.resultBtn} onClick={() => runResult(cmd)}>
+                            <span className={styles.resultIcon}><cmd.Icon size={15} /></span>
+                            <span className={styles.resultText}>
+                              <span className={styles.resultLabel}>{cmd.label}</span>
+                              <span className={styles.resultDesc}>{cmd.desc}</span>
+                            </span>
+                            {cmd.badge
+                              ? <span className={styles.resultBadge}>{cmd.badge}</span>
+                              : <ArrowRight size={13} className={styles.resultArrow} />}
+                          </button>
                         </li>
                       ))}
+                      {results.length === 0 && (
+                        <li className={styles.noResult}>No match for “{query}”.</li>
+                      )}
                     </ul>
-                  </div>
-                )}
-
-                {/* AI Agent (JARVIS fallback) */}
-                {!isLoggedIn && (
-                  <div className={styles.agentRow}>
-                    <Cpu size={12} />
-                    <span>{agent.model}</span>
-                    <span className={styles.agentType}>{agent.type}</span>
-                  </div>
-                )}
-
-                {/* RPC balance (logged in) */}
-                {isLoggedIn && (
-                  <div className={styles.rpcChip}>
-                    <Landmark size={11} />
-                    <span className={styles.rpcValue}>{(user?.rpcBalance ?? 0).toLocaleString()}</span>
-                    <span className={styles.rpcLabel}>RPC</span>
-                  </div>
-                )}
-
-                {/* Actions */}
-                <div className={styles.hdiActions}>
-                  {!isLoggedIn && (
-                    <a
-                      href={identity.verify_url}
-                      target="_blank" rel="noopener noreferrer"
-                      className={styles.btnVerify}
-                    >
-                      <Shield size={11} /> Verify Identity
-                    </a>
-                  )}
-                  <button className={styles.btnHDI} onClick={handleHDI}>
-                    {isLoggedIn ? `Open HDI · ${handle}` : 'Enter Protocol'}
-                    <ArrowRight size={12} />
-                  </button>
-                </div>
-
-                {isLoggedIn && user?.createdAt ? (
-                  <p className={styles.licenseId}>
-                    Joined {new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                  </p>
-                ) : (
-                  !isLoggedIn && <p className={styles.licenseId}>{identity.license_id}</p>
-                )}
-
-              </div>
-            </aside>
-
-            {/* ── Center: Dot Globe ── */}
-            <div className={styles.canvasWrap}>
-              <MatrixRain />
-
-              <Canvas
-                camera={{ position: [0, 0, 11.6], fov: 54 }}
-                gl={{ antialias: true, alpha: true }}
-                style={{ background: 'transparent', width: '100%', height: '100%', position: 'relative', zIndex: 1 }}
-              >
-                <AutoFitCamera />
-                <Suspense fallback={null}>
-                  <DotGlobe />
-                </Suspense>
-                <OrbitControls
-                  enableZoom={false}
-                  enablePan={false}
-                  autoRotate={false}
-                  minPolarAngle={Math.PI * 0.25}
-                  maxPolarAngle={Math.PI * 0.75}
-                />
-              </Canvas>
-
-              <div className={styles.canvasBtnGroup}>
-                <button className={styles.surfaceBtn} onClick={handleSurface} aria-label="Open white surface workspace">
-                  <Monitor size={12} className={styles.surfaceBtnIcon} />
-                  Surface
-                </button>
-                <button className={`${styles.surfaceBtn} ${styles.earthSurfaceBtn}`} onClick={handleEarthSurface} aria-label="Open Earth Surface map">
-                  <Globe2 size={12} className={styles.surfaceBtnIcon} />
-                  Earth Surface
-                </button>
-              </div>
-
-              <div className={styles.globeLabel}>
-                <span className={styles.globeLabelDot} />
-                <span>New Delhi · 28.6139°N</span>
-              </div>
-            </div>
-
-            {/* ── Right panel ── */}
-            <aside className={styles.rightPanel}>
-              <div className={styles.panelInner}>
-
-                {isLoggedIn ? (
-                  /* ── Logged-in: public profile ── */
-                  <>
-                    <div className={styles.panelEyebrow} style={{ color: '#4da6ff' }}>
-                      <Eye size={10} /> PUBLIC PROFILE · {handle}
-                    </div>
-
-                    <p className={styles.hubSub}>
-                      Your profile as seen by other citizens on Earthsphere.
-                    </p>
-
-                    {/* Stats */}
-                    <div className={styles.profileStats}>
-                      <div className={styles.profileStat}>
-                        <span className={styles.profileStatValue}>{activeVerifs.length}</span>
-                        <span className={styles.profileStatLabel}>Verified</span>
-                      </div>
-                      <div className={styles.profileStatDiv} />
-                      <div className={styles.profileStat}>
-                        <span className={styles.profileStatValue}>{publicAssets.length}</span>
-                        <span className={styles.profileStatLabel}>Assets</span>
-                      </div>
-                      <div className={styles.profileStatDiv} />
-                      <div className={styles.profileStat}>
-                        <span className={styles.profileStatValue}>{myNations.length}</span>
-                        <span className={styles.profileStatLabel}>Nations</span>
-                      </div>
-                    </div>
-
-                    {/* Nations */}
-                    {myNations.length > 0 && (
-                      <div className={styles.fieldBlock}>
-                        <p className={styles.fieldLabel}>My Nations · {myNations.length}</p>
-                        <div className={styles.nationsList}>
-                          {myNations.map(n => (
-                            <div key={n.id} className={styles.nationChip}>
-                              <span>{n.flag}</span>
-                              <span className={styles.nationChipName}>{n.name}</span>
-                              {n.founder_hid === user?.hdi && (
-                                <span className={styles.nationChipRole}>Founder</span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Disclosure note */}
-                    <div className={styles.disclosureNote}>
-                      <Eye size={11} className={styles.discIcon} />
-                      <div>
-                        <p className={styles.discTitle}>
-                          {Object.values(disclosure).filter(Boolean).length} fields public
-                        </p>
-                        <p className={styles.discSub}>Manage visibility in HDI settings</p>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className={styles.hubActions}>
-                      <button className={styles.btnChat} onClick={handleAskJarvis}>
-                        <MessageCircle size={13} />
-                        Ask Jarvis AI
-                      </button>
-                      <button className={styles.btnVisit} onClick={() => setCurrentPage('world')}>
-                        <Users size={12} />
-                        World Nations
-                      </button>
-                    </div>
-
-                    <button className={styles.btnHDIAlt} onClick={() => setCurrentPage('hdi')}>
-                      <TrendingUp size={12} />
-                      Open Full HDI Profile
-                      <ArrowRight size={11} />
-                    </button>
-
-                    <div className={styles.hubStatus}>
-                      <span className={styles.hubStatusDot} />
-                      <span>ONLINE · EARTHSPHERE</span>
-                    </div>
-                  </>
-                ) : (
-                  /* ── Logged-out: Jarvis hub ── */
-                  <>
-                    <div className={styles.panelEyebrow} style={{ color: '#4da6ff' }}>
-                      <span>🌐</span> KINGOFYADAV.IN · HUB
-                    </div>
-
-                    <p className={styles.hubSub}>
-                      Your entry point to the digital world.
-                      <br />
-                      Navigate to any page directly from Earth.
-                    </p>
-
-                    <div className={styles.hubGrid}>
-                      {HUB.map(l => (
-                        <a
-                          key={l.href}
-                          href={l.href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={styles.hubCard}
-                        >
-                          <span className={styles.hubEmoji}>{l.emoji}</span>
-                          <span className={styles.hubLabel}>{l.label}</span>
-                          <span className={styles.hubSub2}>{l.sub}</span>
-                        </a>
-                      ))}
-                    </div>
-
-                    <div className={styles.hubActions}>
-                      <button className={styles.btnChat} onClick={handleAskJarvis}>
-                        <MessageCircle size={13} />
-                        Ask Jarvis AI
-                      </button>
-                      <a
-                        href="https://kingofyadav.in"
-                        target="_blank" rel="noopener noreferrer"
-                        className={styles.btnVisit}
-                      >
-                        Visit Profile <ExternalLink size={11} />
-                      </a>
-                    </div>
-
-                    <div className={styles.hubStatus}>
-                      <span className={styles.hubStatusDot} />
-                      <span>{surface.online_status.toUpperCase()} · {location.home_zone}</span>
-                    </div>
+                    <p className={styles.searchHint}>URL opens the site · keywords search web · <code>.</code> lists commands</p>
                   </>
                 )}
 
+                <input ref={fileInputRef} type="file" hidden aria-hidden="true" tabIndex={-1} onChange={() => {}} />
               </div>
-            </aside>
+            </section>
+
+            {/* Right — Real live Earth */}
+            <section className={`${styles.section} ${styles.realSection}`}>
+              <div className={styles.sectionCanvas}>
+                <Canvas camera={{ position: [0, 0, 11.6], fov: 54 }} gl={{ antialias: true, alpha: true }} style={{ background: 'transparent' }}>
+                  <AutoFitCamera />
+                  <ambientLight intensity={0.9} />
+                  <hemisphereLight args={['#bcd8ff', '#0a1420', 0.55]} />
+                  <directionalLight position={[3, 2, 6]} intensity={1.9} color="#fff6e8" />
+                  <Suspense fallback={null}><RealEarth /></Suspense>
+                  <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.35} minPolarAngle={Math.PI * 0.25} maxPolarAngle={Math.PI * 0.75} />
+                </Canvas>
+              </div>
+              <div className={styles.sectionTag}>
+                <span className={styles.tagDot} style={{ background: '#22c55e' }} />
+                REAL LIVE EARTH
+              </div>
+            </section>
 
           </div>
-
-          {/* ── Footer ── */}
-          <footer className={styles.footer}>
-            {isLoggedIn ? (
-              <>
-                <div className={styles.liveChip}>
-                  <span className={styles.livePulse} />
-                  HDI ACTIVE
-                </div>
-                <div className={styles.divider} />
-                <div className={styles.stat}>
-                  <span className={styles.statValue}>{trustScore}</span>
-                  <span className={styles.statLabel}>TRUST SCORE</span>
-                </div>
-                <div className={styles.stat}>
-                  <span className={styles.statValue}>{activeVerifs.length} / 6</span>
-                  <span className={styles.statLabel}>VERIFIED</span>
-                </div>
-                <div className={styles.stat}>
-                  <span className={styles.statValue}>{(user?.rpcBalance ?? 0).toLocaleString()}</span>
-                  <span className={styles.statLabel}>RPC BALANCE</span>
-                </div>
-                <div className={styles.footerRight}>
-                  <span>{handle} · Earthsphere</span>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className={styles.liveChip}>
-                  <span className={styles.livePulse} />
-                  MAINNET LIVE
-                </div>
-                <div className={styles.divider} />
-                <div className={styles.stat}>
-                  <span className={styles.statValue}>1,248</span>
-                  <span className={styles.statLabel}>NODES ACTIVE</span>
-                </div>
-                <div className={styles.stat}>
-                  <span className={styles.statValue}>42.8M</span>
-                  <span className={styles.statLabel}>TOTAL TXS</span>
-                </div>
-                <div className={styles.stat}>
-                  <span className={styles.statValue}>12,490,211</span>
-                  <span className={styles.statLabel}>BLOCK HEIGHT</span>
-                </div>
-                <div className={styles.footerRight}>
-                  <span>First User · {identity.handle} · {location.city}</span>
-                </div>
-              </>
-            )}
-          </footer>
-
         </motion.div>
       )}
     </AnimatePresence>
