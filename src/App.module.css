@@ -47,6 +47,14 @@
   background: linear-gradient(to left, rgba(0, 0, 0, 0.6), transparent);
 }
 
+/* Day: the scene is light — fade with white, not black smudges */
+.root[data-theme="day"] .canvas::before {
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.72), transparent);
+}
+.root[data-theme="day"] .canvas::after {
+  background: linear-gradient(to left, rgba(255, 255, 255, 0.72), transparent);
+}
+
 /* ── Scene overlay (glass / dark / light protection) ── */
 .sceneOverlay {
   position: fixed;

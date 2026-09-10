@@ -60,3 +60,8 @@
   .stat:nth-child(2),
   .stat:nth-child(3) { display: none; }
 }
+
+/* ── Day theme — stats sit over the light scene ── */
+:global([data-theme='day']) .value { color: #0f172a; }
+:global([data-theme='day']) .label { color: rgba(15, 23, 42, 0.5); }
+:global([data-theme='day']) .sep   { background: rgba(15, 23, 42, 0.14); }

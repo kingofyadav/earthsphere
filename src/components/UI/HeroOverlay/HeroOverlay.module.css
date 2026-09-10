@@ -167,3 +167,29 @@
   .sub { display: none; }
   .wrap { top: calc(56px + 1.25rem); }
 }
+
+/* ── Day theme — the landing sits over the light scene ── */
+:global([data-theme='day']) .eyebrow  { color: rgba(37, 99, 235, 0.95); }
+:global([data-theme='day']) .headline { color: #0f172a; }
+:global([data-theme='day']) .sub      { color: rgba(15, 23, 42, 0.62); }
+:global([data-theme='day']) .signinRow { color: rgba(15, 23, 42, 0.55); }
+:global([data-theme='day']) .signinLink { color: rgba(29, 78, 216, 0.9); }
+:global([data-theme='day']) .signinLink:hover { color: #1d4ed8; }
+:global([data-theme='day']) .tapHint  { color: rgba(15, 23, 42, 0.35); }
+:global([data-theme='day']) .hdiAccent { color: #1d4ed8; }
+:global([data-theme='day']) .btnPrimary {
+  background: #0f172a;
+  color: #fff;
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.22);
+}
+:global([data-theme='day']) .btnPrimary:hover { background: #1e293b; color: #fff; }
+:global([data-theme='day']) .btnGhost {
+  background: rgba(15, 23, 42, 0.05);
+  color: rgba(15, 23, 42, 0.7);
+  border-color: rgba(15, 23, 42, 0.15);
+}
+:global([data-theme='day']) .btnGhost:hover {
+  background: rgba(15, 23, 42, 0.1);
+  color: #0f172a;
+  border-color: rgba(15, 23, 42, 0.28);
+}
