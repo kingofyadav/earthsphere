@@ -56,12 +56,16 @@ function SceneLighting() {
   )
 }
 
-// Sync camera position/fov when device breakpoint changes without destroying the WebGL context
+// Sync camera position/fov when the device breakpoint changes, without tearing
+// down the WebGL context. The three.js camera is a mutable external object and
+// updateProjectionMatrix() commits the change — this is the sanctioned R3F
+// escape hatch, so the immutability lint is suppressed for that one line.
 function CameraSync({ device }) {
   const { camera, invalidate } = useThree()
   useEffect(() => {
     const cfg = DEVICE_CONFIG[device]
     camera.position.set(...cfg.position)
+    // eslint-disable-next-line react-hooks/immutability -- three.js camera is externally mutable; see note above
     camera.fov = cfg.fov
     camera.updateProjectionMatrix()
     invalidate()

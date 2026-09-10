@@ -303,9 +303,14 @@ export default function EarthSurfacePage() {
   // ── GPS — initial fix + continuous watch ─────────────────────────────────────
   useEffect(() => {
     if (currentPage !== 'earth-surface') return
-    if (!navigator.geolocation) { setLocStatus('unavailable'); return }
 
-    if (!gpsAcquiredRef.current) setLocStatus('requesting')
+    if (!navigator.geolocation) {
+      const t = setTimeout(() => setLocStatus('unavailable'), 0)
+      return () => clearTimeout(t)
+    }
+
+    // Reflect the pending lookup without a synchronous setState in the effect body.
+    const statusT = gpsAcquiredRef.current ? null : setTimeout(() => setLocStatus('requesting'), 0)
 
     navigator.geolocation.getCurrentPosition(
       ({ coords: c }) => {
@@ -340,6 +345,7 @@ export default function EarthSurfacePage() {
     )
 
     return () => {
+      if (statusT) clearTimeout(statusT)
       if (watchIdRef.current != null) {
         navigator.geolocation.clearWatch(watchIdRef.current)
         watchIdRef.current = null

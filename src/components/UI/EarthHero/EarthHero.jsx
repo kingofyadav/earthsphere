@@ -129,6 +129,9 @@ function CityNodes({ R = 2.87 }) {
 
 const SPHERE_R = 2.8
 
+// Pull the camera back so the globe stays framed as the canvas resizes. The
+// three.js camera is a mutable external object (standard R3F escape hatch), so
+// the immutability lint is suppressed for that one assignment.
 function AutoFitCamera() {
   const { camera, size, invalidate } = useThree()
   useEffect(() => {
@@ -138,6 +141,7 @@ function AutoFitCamera() {
     const fill   = aspect >= 0.7 ? 0.52 : 0.42
     const dim    = aspect >= 0.7 ? 1 : aspect
     const dist   = (SPHERE_R * 2) / (fill * dim * 2 * Math.tan(fovRad / 2))
+    // eslint-disable-next-line react-hooks/immutability -- three.js camera is externally mutable
     camera.position.z = Math.max(8.0, Math.min(17.0, dist))
     invalidate()
   }, [size.width, size.height, camera, invalidate])
@@ -291,7 +295,6 @@ export default function EarthHero() {
   const [query, setQuery] = useState('')
   const voice = useVoiceInput(setQuery)
   const inputRef = useRef(null)
-  const fileInputRef = useRef(null)
 
   const goJarvis = () => { setCurrentPage(null); openJarvisChat() }
 
@@ -302,9 +305,7 @@ export default function EarthHero() {
     { id: 'surface', label: 'Surface Workspace', desc: 'White workspace',          Icon: Monitor,       keys: 'surface workspace white apps build', run: () => setCurrentPage(PAGE.SURFACE) },
     { id: 'earth',   label: 'Earth Surface Map', desc: 'Claim territory zones',    Icon: Globe2,        keys: 'earth surface map territory claim zone', run: () => setCurrentPage(PAGE.EARTH_SURFACE) },
     { id: 'jarvis',  label: 'Ask Jarvis AI',     desc: 'Talk to your agent',       Icon: MessageCircle, keys: 'jarvis ai chat assistant ask', run: goJarvis },
-    { id: 'chat',    label: 'Chat Terminal',     desc: 'chat.zerosoils.com',       Icon: MessageCircle, keys: 'chat terminal message app', run: () => openExt('https://chat.zerosoils.com') },
-    { id: 'wallet',  label: 'Wallet',            desc: 'kingofyadav.in/wallet',    Icon: Wallet,        keys: 'wallet coin money assets rupeecoin', run: () => openExt('https://kingofyadav.in/wallet/') },
-    { id: 'site',    label: 'Profile Site',      desc: 'kingofyadav.in',           Icon: ExternalLink,  keys: 'profile website portfolio blog', run: () => openExt('https://kingofyadav.in') },
+    { id: '0dot',    label: '0dot Identity',     desc: '0dot.in — claim your profile & domain', Icon: ExternalLink, keys: '0dot identity profile domain claim username site portfolio', run: () => openExt('https://0dot.in') },
   ], [setCurrentPage]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Files: the user's HDI assets, searchable
@@ -325,9 +326,10 @@ export default function EarthHero() {
     { name: 'surface',   label: 'Surface',       desc: 'White workspace',         Icon: Monitor,         run: () => setCurrentPage(PAGE.SURFACE) },
     { name: 'earth',     label: 'Earth Surface', desc: 'Territory map',           Icon: Globe2,          run: () => setCurrentPage(PAGE.EARTH_SURFACE) },
     { name: 'claim',     label: 'Claim',         desc: 'Claim territory',         Icon: MapPin,          run: () => setCurrentPage(PAGE.EARTH_SURFACE) },
-    { name: 'wallet',    label: 'Wallet',        desc: 'Open your wallet',        Icon: Wallet,          run: () => openExt('https://kingofyadav.in/wallet/') },
+    { name: 'wallet',    label: 'Wallet',        desc: 'Wallet & assets in your HDI', Icon: Wallet,      run: () => setCurrentPage(PAGE.HDI) },
+    { name: '0dot',      label: '0dot Identity', desc: 'Claim your 0dot profile', Icon: ExternalLink,    run: () => openExt('https://0dot.in') },
     { name: 'jarvis',    label: 'Jarvis',        desc: 'Ask the AI agent',        Icon: MessageCircle,   run: goJarvis },
-    { name: 'file',      label: 'File',          desc: 'Open a file from device', Icon: FolderOpen,      run: () => openDeviceFile(fileInputRef.current) },
+    { name: 'file',      label: 'File',          desc: 'Open a file from device', Icon: FolderOpen,      run: () => openDeviceFile() },
     { name: 'web',       label: 'Web',           desc: 'Search the internet',     Icon: Globe,           run: () => openExt('https://duckduckgo.com') },
     { name: 'help',      label: 'Help',          desc: 'List all . commands',     Icon: Hash,            run: () => setQuery('.') },
   ], [setCurrentPage]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -461,8 +463,6 @@ export default function EarthHero() {
                     <p className={styles.searchHint}>URL opens the site · keywords search web · <code>.</code> lists commands</p>
                   </>
                 )}
-
-                <input ref={fileInputRef} type="file" hidden aria-hidden="true" tabIndex={-1} onChange={() => {}} />
               </div>
             </section>
 

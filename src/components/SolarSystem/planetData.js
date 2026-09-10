@@ -15,8 +15,6 @@ export const PLANETS = [
     role: 'Signal Relay',
     unlock: 'Verification Sources',
     fact: 'Closest relay to the Sun. Visit Mercury to begin proving signals like email, phone, and documents.',
-    appUrl: 'https://chat.zerosoils.com',
-    appName: 'Chat Terminal',
   },
   {
     name: 'Venus',
@@ -31,8 +29,6 @@ export const PLANETS = [
     role: 'Consent Layer',
     unlock: 'Permission Engine',
     fact: 'Venus governs consent. Verified users tune what their HDI can view, share, transfer, or claim.',
-    appUrl: 'https://id.zerosoils.com',
-    appName: 'ZeroSoils Identity',
   },
   {
     name: 'Earth',
@@ -62,8 +58,6 @@ export const PLANETS = [
     role: 'Recovery Vault',
     unlock: 'Recovery Protocol',
     fact: 'Mars stores resilience. Configure guardians, family recovery, time locks, and multisig routes here.',
-    appUrl: 'https://coin.zerosoils.com',
-    appName: 'RupeeCoin',
   },
   {
     name: 'Jupiter',
@@ -78,8 +72,6 @@ export const PLANETS = [
     role: 'Trust Graph',
     unlock: 'Relationship Graph',
     fact: 'Jupiter expands trust through family, friends, professional links, and social verification.',
-    appUrl: 'https://pay.zerosoils.com',
-    appName: 'PayEngine',
   },
   {
     name: 'Saturn',
@@ -95,8 +87,6 @@ export const PLANETS = [
     role: 'Asset Rings',
     unlock: 'Digital Asset Ownership',
     fact: 'Saturn links wallets, domains, credentials, and documents into rings around your HDI.',
-    appUrl: 'https://play.zerosoils.com',
-    appName: 'Ludo',
   },
   {
     name: 'Uranus',
@@ -111,8 +101,6 @@ export const PLANETS = [
     role: 'Privacy Tilt',
     unlock: 'Selective Disclosure',
     fact: 'Uranus turns disclosure sideways: decide what becomes public and what stays private.',
-    appUrl: 'https://biz.zerosoils.com',
-    appName: 'Jhon Aamit LLP',
   },
   {
     name: 'Neptune',
@@ -127,8 +115,6 @@ export const PLANETS = [
     role: 'Sovereign Edge',
     unlock: 'Identity Export',
     fact: 'Neptune is the sovereign edge. Export your identity and carry the credential beyond the system.',
-    appUrl: 'https://nyf.zerosoils.com',
-    appName: 'National Youth Force',
   },
 ]
 
@@ -156,8 +142,10 @@ export const SUN_DATA = {
   role: 'Protocol Source',
   unlock: 'Genesis Access',
   fact: 'The origin of all sovereign energy. The Sun powers every node in the digital universe and maintains the gravitational truth of the entire protocol.',
-  appUrl: 'https://jarvis.zerosoils.com',
-  appName: 'Jarvis AI',
+  // The one external destination: claim your permanent identity / profile / domain
+  // on 0dot, then return to Earth to claim territory and found your nation.
+  appUrl: 'https://0dot.in',
+  appName: '0dot Identity',
 }
 
 // Sun as a tour stop — registered via planetRefs in Sun.jsx

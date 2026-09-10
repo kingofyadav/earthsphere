@@ -41,8 +41,17 @@ export const secureStorage = {
   getItem: async (name) => {
     const val = localStorage.getItem(name)
     if (!val) return null
-    try { return await decrypt(val) }
+    let plain
+    try { plain = await decrypt(val) }
     catch { localStorage.removeItem(name); return null }
+    // Drop payloads that aren't a JSON object — e.g. blobs written by an older
+    // build that stored "[object Object]". Lets the store start clean instead of
+    // throwing on JSON.parse forever.
+    if (typeof plain !== 'string' || !plain.trimStart().startsWith('{')) {
+      localStorage.removeItem(name)
+      return null
+    }
+    return plain
   },
   setItem: async (name, value) => {
     localStorage.setItem(name, await encrypt(String(value)))

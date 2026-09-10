@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef, Suspense } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { useTexture, OrbitControls } from '@react-three/drei'
+import { useTexture, OrbitControls, Stars, Sparkles } from '@react-three/drei'
 import * as THREE from 'three'
-import { motion, AnimatePresence } from 'framer-motion'
-import { X, ArrowRight, ExternalLink, Satellite, Atom, Wifi } from 'lucide-react'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import FocusTrap from 'focus-trap-react'
+import { X, ArrowRight, ExternalLink, Satellite, Atom, Wifi, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEarthStore }  from '../../../store/earthStore'
 import { useAuthStore }   from '../../../store/authStore'
 import { PLANETS, MOON, SUN_DATA } from '../../SolarSystem/planetData'
@@ -23,48 +24,135 @@ const ALL_BODIES = [...PLANETS.filter(p => !p.isEarth), MOON, SUN_DATA]
 // Re-exported from lib/pages to allow lazy-loading this component without pulling in the name list
 export { PLANET_PAGE_NAMES } from '../../../lib/pages'
 
-/* ── 3D rotating planet ─────────────────────────────────────────────────────── */
-function PlanetBall({ textureUrl, color, hasRings }) {
-  const groupRef = useRef()
-  const [map]    = useTexture([textureUrl])
+/* Earth reference values for the comparison bars */
+const EARTH_REF = { gravity: 9.807, escapeVel: 11.186, diameter: 12742 }
 
+// drei `useTexture` onLoad handler — raise anisotropic filtering so textures stay
+// sharp at grazing angles. Runs once per mount; PlanetBall is remounted on every
+// body change (keyed container) so each planet's texture is covered.
+function sharpenTextures(loaded) {
+  const list = Array.isArray(loaded) ? loaded : [loaded]
+  for (const tex of list) {
+    if (tex?.isTexture) {
+      tex.anisotropy = 16
+      tex.colorSpace = THREE.SRGBColorSpace
+      tex.needsUpdate = true
+    }
+  }
+}
+
+// Re-derive live Keplerian data for `name`. The interval just forces a re-render;
+// the (cheap) computation runs during render, so there is no synchronous setState
+// in an effect body and the value always tracks the current time and `name`.
+function useLiveOrbitalData(name, intervalMs) {
+  const [, setTick] = useState(0)
   useEffect(() => {
-    if (map) { map.anisotropy = 16; map.needsUpdate = true }
-  }, [map])
+    const id = setInterval(() => setTick((n) => n + 1), intervalMs)
+    return () => clearInterval(id)
+  }, [intervalMs])
+  return calcPlanetLiveData(name)
+}
 
-  useFrame(() => {
-    if (groupRef.current) groupRef.current.rotation.y += 0.002
+/* ── 3D rotating planet ─────────────────────────────────────────────────────── */
+const RING_BANDS = [
+  [3.05, 3.62, 0.34],
+  [3.72, 4.22, 0.22],   // Cassini-division gap between this and the next
+  [4.46, 5.15, 0.30],
+]
+
+function PlanetBall({ textureUrl, color, hasRings, isSun, tilt = 0, spin }) {
+  const groupRef = useRef()
+  const [map] = useTexture([textureUrl], sharpenTextures)
+  const tiltRad = (tilt % 180) * (Math.PI / 180)
+
+  useFrame((_, delta) => {
+    if (groupRef.current && spin) groupRef.current.rotation.y += delta * spin
   })
 
   return (
-    <group ref={groupRef}>
-      <mesh>
-        <sphereGeometry args={[2.4, 96, 96]} />
-        <meshStandardMaterial map={map} roughness={0.7} metalness={0.04} />
-      </mesh>
-
-      {/* inner glow */}
-      <mesh>
-        <sphereGeometry args={[2.54, 64, 64]} />
-        <meshBasicMaterial color={color} transparent opacity={0.06}
-          side={THREE.BackSide} depthWrite={false} blending={THREE.AdditiveBlending} />
-      </mesh>
-      {/* outer haze */}
-      <mesh>
-        <sphereGeometry args={[2.78, 64, 64]} />
-        <meshBasicMaterial color={color} transparent opacity={0.022}
-          side={THREE.BackSide} depthWrite={false} blending={THREE.AdditiveBlending} />
-      </mesh>
-
-      {/* Saturn rings */}
-      {hasRings && (
-        <mesh rotation={[Math.PI / 2.6, 0.15, 0]}>
-          <ringGeometry args={[3.1, 4.8, 80]} />
-          <meshBasicMaterial color="#c9b96a" transparent opacity={0.36}
-            side={THREE.DoubleSide} depthWrite={false} />
+    <group rotation={[0, 0, tiltRad]}>
+      <group ref={groupRef}>
+        <mesh>
+          <sphereGeometry args={[2.4, 128, 128]} />
+          {isSun ? (
+            <meshBasicMaterial map={map} toneMapped={false} />
+          ) : (
+            <meshStandardMaterial map={map} roughness={0.82} metalness={0.02} />
+          )}
         </mesh>
-      )}
+
+        {/* inner glow */}
+        <mesh>
+          <sphereGeometry args={[2.52, 64, 64]} />
+          <meshBasicMaterial color={color} transparent opacity={isSun ? 0.16 : 0.07}
+            side={THREE.BackSide} depthWrite={false} blending={THREE.AdditiveBlending} />
+        </mesh>
+        {/* outer haze */}
+        <mesh>
+          <sphereGeometry args={[isSun ? 3.2 : 2.82, 64, 64]} />
+          <meshBasicMaterial color={color} transparent opacity={isSun ? 0.07 : 0.028}
+            side={THREE.BackSide} depthWrite={false} blending={THREE.AdditiveBlending} />
+        </mesh>
+
+        {/* Saturn rings — layered bands with a Cassini-division gap */}
+        {hasRings && RING_BANDS.map(([inner, outer, opacity], i) => (
+          <mesh key={i} rotation={[Math.PI / 2.4, 0, 0]}>
+            <ringGeometry args={[inner, outer, 96]} />
+            <meshBasicMaterial color="#d8c58f" transparent opacity={opacity}
+              side={THREE.DoubleSide} depthWrite={false} />
+          </mesh>
+        ))}
+      </group>
+
+      {isSun && <Sparkles count={40} scale={9} size={5} speed={spin ? 0.3 : 0} color={color} opacity={0.5} />}
     </group>
+  )
+}
+
+function PlanetScene({ data, reduce }) {
+  return (
+    <Canvas
+      dpr={[1, 2]}
+      camera={{ position: [0, 0, 7.4], fov: 46 }}
+      gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+      frameloop={reduce ? 'demand' : 'always'}
+      style={{ background: 'transparent' }}
+    >
+      <color attach="background" args={['#01020a']} />
+      <fog attach="fog" args={['#01020a', 14, 30]} />
+
+      {data.name === 'Sun' ? (
+        <ambientLight intensity={1.1} />
+      ) : (
+        <>
+          <ambientLight intensity={0.16} />
+          <directionalLight position={[6, 2.5, 5]} intensity={2.6} />
+          {/* coloured rim light from behind */}
+          <pointLight position={[-5, -1, -4]} intensity={1.4} color={data.color} distance={22} />
+          <pointLight position={[0, 4, 3]} intensity={0.35} color="#8fb7ff" />
+        </>
+      )}
+
+      <Stars radius={90} depth={45} count={2200} factor={3.2} saturation={0} fade
+        speed={reduce ? 0 : 0.35} />
+
+      <Suspense fallback={null}>
+        <PlanetBall
+          textureUrl={data.textureUrl}
+          color={data.color}
+          hasRings={!!data.hasRings}
+          isSun={data.name === 'Sun'}
+          tilt={data.tilt ?? 0}
+          spin={reduce ? 0 : (data.name === 'Sun' ? 0.06 : 0.13)}
+        />
+      </Suspense>
+
+      <OrbitControls
+        enableZoom={false} enablePan={false} enableDamping dampingFactor={0.08}
+        rotateSpeed={0.5}
+        minPolarAngle={Math.PI * 0.16} maxPolarAngle={Math.PI * 0.84}
+      />
+    </Canvas>
   )
 }
 
@@ -72,28 +160,35 @@ function PlanetBall({ textureUrl, color, hasRings }) {
 function OverviewTab({ data, onExplore, isLoggedIn }) {
   return (
     <div className={styles.tabPane}>
-      <div className={styles.eyebrow}>
+      <motion.div className={styles.eyebrow}
+        initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.02 }}>
         <span className={styles.eyebrowDot} style={{ background: data.color }} />
         SOVEREIGN NETWORK &nbsp;·&nbsp; {data.role.toUpperCase()}
-      </div>
+      </motion.div>
 
-      <h1 className={styles.planetName}
-        style={{ background: `linear-gradient(135deg, #ffffff 0%, ${data.color} 100%)`,
+      <motion.h1 className={styles.planetName}
+        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 }}
+        style={{ background: `linear-gradient(135deg, #ffffff 0%, ${data.color} 118%)`,
                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
         {data.name}
-      </h1>
+      </motion.h1>
 
-      <p className={styles.factText}>{data.fact}</p>
+      <motion.p className={styles.factText}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.12 }}>
+        {data.fact}
+      </motion.p>
 
-      <div className={styles.unlockRow}>
-        <span className={styles.unlockLabel}>UNLOCKS</span>
+      <motion.div className={styles.unlockCard} style={{ borderColor: `${data.color}33` }}
+        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }}>
+        <span className={styles.unlockLabel}>UNLOCKS ON ARRIVAL</span>
         <span className={styles.unlockValue} style={{ color: data.color }}>{data.unlock}</span>
-      </div>
+      </motion.div>
 
-      <div className={styles.ctaRow}>
+      <motion.div className={styles.ctaRow}
+        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
         <button
           className={styles.ctaPrimary}
-          style={{ borderColor: `${data.color}55`, background: `${data.color}16` }}
+          style={{ borderColor: `${data.color}66`, background: `${data.color}1c` }}
           onClick={onExplore}
         >
           {isLoggedIn ? 'Open in HDI' : 'Create Identity'}
@@ -105,12 +200,37 @@ function OverviewTab({ data, onExplore, isLoggedIn }) {
             {data.appName} <ExternalLink size={12} />
           </a>
         )}
-      </div>
+      </motion.div>
     </div>
   )
 }
 
 /* ── Tab: Science ───────────────────────────────────────────────────────────── */
+function num(str) {
+  const m = String(str).match(/-?[\d,]+\.?\d*/)
+  return m ? parseFloat(m[0].replace(/,/g, '')) : null
+}
+
+function CompareBar({ label, ratio, color }) {
+  const reduce = useReducedMotion()
+  if (ratio == null || !isFinite(ratio)) return null
+  const pct = Math.min(ratio / 3, 1) * 100
+  const over = ratio > 3
+  return (
+    <div className={styles.cmpRow}>
+      <span className={styles.cmpLabel}>{label}</span>
+      <div className={styles.cmpTrack}>
+        <div className={styles.cmpEarthTick} title="Earth = 1×" />
+        <motion.div className={styles.cmpFill} style={{ background: color }}
+          initial={reduce ? false : { width: 0 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }} />
+      </div>
+      <span className={styles.cmpVal}>{over ? '»' : ''}{ratio >= 10 ? ratio.toFixed(0) : ratio.toFixed(2)}×</span>
+    </div>
+  )
+}
+
 function ScienceTab({ name, color }) {
   const info = PLANET_INFO[name]
   if (!info) return null
@@ -126,6 +246,10 @@ function ScienceTab({ name, color }) {
     { label: 'MOONS',         value: info.moons          },
   ]
 
+  const dRatio = num(info.diameterRatio) ?? (num(info.diameter) != null ? num(info.diameter) / EARTH_REF.diameter : null)
+  const gRatio = num(info.gravity)   != null ? num(info.gravity)   / EARTH_REF.gravity   : null
+  const eRatio = num(info.escapeVel) != null ? num(info.escapeVel) / EARTH_REF.escapeVel : null
+
   return (
     <div className={styles.tabPane}>
       <div className={styles.statsGrid}>
@@ -136,6 +260,13 @@ function ScienceTab({ name, color }) {
             {s.sub && <span className={styles.statCellSub}>{s.sub}</span>}
           </div>
         ))}
+      </div>
+
+      <div className={styles.cmpBlock}>
+        <p className={styles.scienceBlockLabel}>RELATIVE TO EARTH</p>
+        <CompareBar label="Size"    ratio={dRatio} color={color} />
+        <CompareBar label="Gravity" ratio={gRatio} color={color} />
+        <CompareBar label="Escape velocity" ratio={eRatio} color={color} />
       </div>
 
       <div className={styles.scienceBlock}>
@@ -171,7 +302,79 @@ function ScienceTab({ name, color }) {
   )
 }
 
-/* ── Tab: Live ──────────────────────────────────────────────────────────────── */
+/* ── Live visualisations ────────────────────────────────────────────────────── */
+function MoonPhaseDisc({ frac, illum, color }) {
+  // frac 0→1 across the synodic cycle; illum is the lit fraction as a percentage.
+  // Lit half-disc + a terminator ellipse that either carves it (crescent) or
+  // extends it into the dark side (gibbous).
+  const R = 34
+  const DARK = '#06070e'
+  const f = Math.max(0, Math.min(1, illum / 100))
+  const waxing = frac < 0.5
+  const gibbous = f > 0.5
+  const rx = R * Math.abs(1 - 2 * f)
+  const litSide = waxing ? 1 : -1
+  const halfPath = `M 0 ${-R} A ${R} ${R} 0 0 ${waxing ? 1 : 0} 0 ${R} Z`
+  const termSweep = (gibbous ? -litSide : litSide) > 0 ? 1 : 0
+  const ellPath = `M 0 ${-R} A ${rx} ${R} 0 0 ${termSweep} 0 ${R} Z`
+  return (
+    <svg viewBox="-40 -40 80 80" className={styles.vizSvg} role="img" aria-label={`Moon ${illum}% illuminated`}>
+      <circle cx="0" cy="0" r={R} fill={DARK} stroke="rgba(255,255,255,0.14)" strokeWidth="0.7" />
+      <path d={halfPath} fill={color} opacity="0.92" />
+      <path d={ellPath} fill={gibbous ? color : DARK} opacity={gibbous ? 0.92 : 1} />
+      <circle cx="0" cy="0" r={R} fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth="0.7" />
+    </svg>
+  )
+}
+
+function OrbitMap({ d, color }) {
+  // Top-down heliocentric map. sqrt scale keeps outer planets on-canvas.
+  const scale = r => 8 + Math.sqrt(r) * 15
+  const rP = Math.min(scale(d.distSun), 44)
+  const rE = scale(d.earthDistSun ?? 1)
+  const pA = -(d.helioLon ?? 0) * Math.PI / 180
+  const eA = -(d.earthLon ?? 0) * Math.PI / 180
+  const px = Math.cos(pA) * rP, py = Math.sin(pA) * rP
+  const ex = Math.cos(eA) * rE, ey = Math.sin(eA) * rE
+  return (
+    <svg viewBox="-50 -50 100 100" className={styles.vizSvg} role="img" aria-label="Top-down orbital position">
+      <circle cx="0" cy="0" r={rE} fill="none" stroke="rgba(120,170,255,0.3)" strokeWidth="0.5" />
+      <circle cx="0" cy="0" r={rP} fill="none" stroke={`${color}66`} strokeWidth="0.5" />
+      <line x1={ex} y1={ey} x2={px} y2={py} stroke="rgba(255,255,255,0.14)" strokeWidth="0.4" strokeDasharray="1.5 1.5" />
+      <circle cx="0" cy="0" r="2.6" fill="#ffcf5c" />
+      <circle cx={ex} cy={ey} r="1.7" fill="#7ab0ff" />
+      <circle cx={px} cy={py} r="2.2" fill={color} />
+    </svg>
+  )
+}
+
+function SunDial({ lon, season, color }) {
+  const a = -(lon ?? 0) * Math.PI / 180
+  return (
+    <svg viewBox="-50 -50 100 100" className={styles.vizSvg} role="img" aria-label={season}>
+      <circle cx="0" cy="0" r="38" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="0.6" />
+      {[0, 90, 180, 270].map(deg => {
+        const r = deg * Math.PI / 180
+        return <line key={deg} x1={Math.cos(r) * 34} y1={Math.sin(r) * 34}
+          x2={Math.cos(r) * 38} y2={Math.sin(r) * 38} stroke="rgba(255,255,255,0.2)" strokeWidth="0.6" />
+      })}
+      <line x1="0" y1="0" x2={Math.cos(a) * 32} y2={Math.sin(a) * 32} stroke={color} strokeWidth="1.4" />
+      <circle cx="0" cy="0" r="3" fill={color} />
+      <circle cx={Math.cos(a) * 32} cy={Math.sin(a) * 32} r="2.4" fill="#7ab0ff" />
+    </svg>
+  )
+}
+
+function LiveHeader({ label, color, timestamp }) {
+  return (
+    <div className={styles.liveHeader}>
+      <span className={styles.livePulse} style={{ background: color }} />
+      <span className={styles.liveHeaderLabel}>{label}</span>
+      <span className={styles.liveTime}>{timestamp}</span>
+    </div>
+  )
+}
+
 function LiveRow({ label, value, sub, accent }) {
   return (
     <div className={styles.liveRow}>
@@ -187,14 +390,7 @@ function LiveRow({ label, value, sub, accent }) {
 }
 
 function LiveTab({ name, color }) {
-  const [d, setD] = useState(() => calcPlanetLiveData(name))
-
-  useEffect(() => {
-    setD(calcPlanetLiveData(name))
-    const t = setInterval(() => setD(calcPlanetLiveData(name)), 10_000)
-    return () => clearInterval(t)
-  }, [name])
-
+  const d = useLiveOrbitalData(name, 10_000)
   const timestamp = new Date().toUTCString().replace(' GMT', ' UTC')
 
   if (!d) {
@@ -207,22 +403,23 @@ function LiveTab({ name, color }) {
       : d.pFrac < 0.55 ? '🌕' : d.pFrac < 0.73 ? '🌖' : d.pFrac < 0.78 ? '🌗' : '🌘'
     return (
       <div className={styles.tabPane}>
-        <div className={styles.liveHeader}>
-          <span className={styles.livePulse} style={{ background: color }} />
-          <span className={styles.liveHeaderLabel}>LIVE · LUNAR MECHANICS</span>
-          <span className={styles.liveTime}>{timestamp}</span>
+        <LiveHeader label="LIVE · LUNAR MECHANICS" color={color} timestamp={timestamp} />
+        <div className={styles.vizWrap}>
+          <MoonPhaseDisc frac={d.pFrac} illum={d.illumination} color={color} />
+          <div className={styles.vizCaption}>
+            <span className={styles.vizBig} style={{ color }}>{phaseEmoji} {d.phaseName}</span>
+            <span className={styles.vizSmall}>{d.illumination}% illuminated · {d.daysToFull.toFixed(1)} days to full</span>
+          </div>
         </div>
         <div className={styles.liveGrid}>
-          <LiveRow label="CURRENT PHASE" value={`${phaseEmoji} ${d.phaseName}`} accent={color} />
-          <LiveRow label="ILLUMINATION"  value={`${d.illumination}%`} />
+          <LiveRow label="ILLUMINATION"  value={`${d.illumination}%`} accent={color} />
           <LiveRow label="CYCLE PROGRESS" value={`${d.phase.toFixed(1)} / 29.5 days`} />
-          <LiveRow label="DAYS TO FULL MOON" value={`${d.daysToFull.toFixed(1)} days`} />
           <LiveRow label="DIST FROM EARTH" value={`${Math.round(d.distEarthKm).toLocaleString()} km`} />
           <LiveRow label="LIGHT TRAVEL" value={`${d.lightSecs.toFixed(3)} seconds`} />
           <LiveRow label="ORBITAL SPEED" value="1.022 km/s" />
         </div>
         <p className={styles.liveNote}>
-          Calculated from synodic lunar cycle model. Updates every 10 seconds.
+          Calculated from the synodic lunar cycle model. Updates every 10 seconds.
         </p>
       </div>
     )
@@ -235,10 +432,13 @@ function LiveTab({ name, color }) {
       : 'Northern winter / Southern summer'
     return (
       <div className={styles.tabPane}>
-        <div className={styles.liveHeader}>
-          <span className={styles.livePulse} style={{ background: color }} />
-          <span className={styles.liveHeaderLabel}>LIVE · KEPLERIAN ORBITAL</span>
-          <span className={styles.liveTime}>{timestamp}</span>
+        <LiveHeader label="LIVE · KEPLERIAN ORBITAL" color={color} timestamp={timestamp} />
+        <div className={styles.vizWrap}>
+          <SunDial lon={d.eclipticLon} season={season} color={color} />
+          <div className={styles.vizCaption}>
+            <span className={styles.vizBig} style={{ color }}>{d.eclipticLon.toFixed(1)}° solar longitude</span>
+            <span className={styles.vizSmall}>{season}</span>
+          </div>
         </div>
         <div className={styles.liveGrid}>
           <LiveRow label="DIST FROM EARTH" value={`${d.distEarth.toFixed(5)} AU`}
@@ -246,11 +446,10 @@ function LiveTab({ name, color }) {
           <LiveRow label="LIGHT TRAVEL TIME" value={`${d.lightMins.toFixed(3)} minutes`}
             sub={`${(d.lightMins * 60).toFixed(1)} seconds`} />
           <LiveRow label="SOLAR LONGITUDE" value={`${d.eclipticLon.toFixed(2)}°`} />
-          <LiveRow label="CURRENT SEASON" value={season} />
         </div>
         <p className={styles.liveNote}>
           Earth's elliptical orbit: 0.9833 AU (perihelion, ~Jan 3) → 1.0167 AU (aphelion, ~Jul 4).
-          Accuracy: ±0.01 AU via J2000 Keplerian elements.
+          Accuracy ±0.01 AU via J2000 Keplerian elements.
         </p>
       </div>
     )
@@ -264,10 +463,15 @@ function LiveTab({ name, color }) {
 
   return (
     <div className={styles.tabPane}>
-      <div className={styles.liveHeader}>
-        <span className={styles.livePulse} style={{ background: color }} />
-        <span className={styles.liveHeaderLabel}>LIVE · KEPLERIAN ORBITAL MECHANICS</span>
-        <span className={styles.liveTime}>{timestamp}</span>
+      <LiveHeader label="LIVE · KEPLERIAN ORBITAL MECHANICS" color={color} timestamp={timestamp} />
+      <div className={styles.vizWrap}>
+        <OrbitMap d={d} color={color} />
+        <div className={styles.vizCaption}>
+          <span className={styles.vizBig} style={{ color }}>{d.distEarth.toFixed(3)} AU from Earth</span>
+          <span className={styles.vizSmall}>
+            {(d.illumFrac * 100).toFixed(0)}% illuminated disc · {d.elongation.toFixed(0)}° elongation
+          </span>
+        </div>
       </div>
       <div className={styles.liveGrid}>
         <LiveRow label="DIST FROM SUN"
@@ -293,14 +497,7 @@ function LiveTab({ name, color }) {
 
 /* ── Bottom live bar ────────────────────────────────────────────────────────── */
 function BottomBar({ name, color }) {
-  const [d, setD] = useState(() => calcPlanetLiveData(name))
-
-  useEffect(() => {
-    setD(calcPlanetLiveData(name))
-    const t = setInterval(() => setD(calcPlanetLiveData(name)), 30_000)
-    return () => clearInterval(t)
-  }, [name])
-
+  const d = useLiveOrbitalData(name, 30_000)
   if (!d) return null
 
   let items
@@ -353,18 +550,33 @@ export default function PlanetPage() {
   const setCurrentPage = useEarthStore(s => s.setCurrentPage)
   const isLoggedIn     = useAuthStore(s => s.isLoggedIn)
   const openLoginModal = useAuthStore(s => s.openLoginModal)
+  const reduce         = useReducedMotion()
 
   const [tab, setTab] = useState('overview')
 
-  const data = ALL_BODIES.find(b => b.name === currentPage) ?? null
+  const idx  = ALL_BODIES.findIndex(b => b.name === currentPage)
+  const data = idx >= 0 ? ALL_BODIES[idx] : null
 
-  // Reset to overview when changing planet
-  useEffect(() => { if (data) setTab('overview') }, [data?.name]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Reset to the overview tab whenever a body is opened or swapped — adjusted
+  // during render (React's "storing information from previous renders" pattern).
+  const [tabbedName, setTabbedName] = useState(null)
+  if ((data?.name ?? null) !== tabbedName) {
+    setTabbedName(data?.name ?? null)
+    if (data) setTab('overview')
+  }
 
   const scrollTimerRef = useRef(null)
   useEffect(() => () => { if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current) }, [])
 
-  function handleExplore() {
+  const close = useCallback(() => setCurrentPage(null), [setCurrentPage])
+
+  const goBody = useCallback((dir) => {
+    if (idx < 0) return
+    const next = (idx + dir + ALL_BODIES.length) % ALL_BODIES.length
+    setCurrentPage(ALL_BODIES[next].name)
+  }, [idx, setCurrentPage])
+
+  const handleExplore = useCallback(() => {
     if (!isLoggedIn) { openLoginModal(); return }
     const phaseId = data ? PLANET_TO_PHASE[data.name] : null
     setCurrentPage(PAGE.HDI)
@@ -373,7 +585,32 @@ export default function PlanetPage() {
         document.getElementById(phaseId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }, 480)
     }
+  }, [isLoggedIn, openLoginModal, data, setCurrentPage])
+
+  // Keyboard: ESC closes, [ / ] and ←/→ switch body, ←/→ within tablist handled locally
+  useEffect(() => {
+    if (!data) return
+    function onKey(e) {
+      if (e.key === 'Escape') { close(); return }
+      if (e.target instanceof HTMLElement &&
+          ['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return
+      if (e.key === '[') goBody(-1)
+      else if (e.key === ']') goBody(1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [data, close, goBody])
+
+  function onTabKey(e) {
+    const i = TABS.findIndex(t => t.id === tab)
+    if (e.key === 'ArrowRight') { e.preventDefault(); setTab(TABS[(i + 1) % TABS.length].id) }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); setTab(TABS[(i - 1 + TABS.length) % TABS.length].id) }
   }
+
+  const scene = useMemo(
+    () => data && <PlanetScene data={data} reduce={!!reduce} />,
+    [data, reduce],
+  )
 
   return (
     <AnimatePresence>
@@ -386,66 +623,80 @@ export default function PlanetPage() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.38 }}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${data.name} — ${data.role}`}
         >
-
           {/* ── 3D Planet canvas ── */}
           <div className={styles.canvasContainer}>
-            <Canvas
-              camera={{ position: [0, 0, 7], fov: 48 }}
-              gl={{ antialias: true, alpha: true }}
-              style={{ background: 'transparent' }}
-            >
-              <ambientLight intensity={0.28} />
-              <directionalLight position={[6, 3, 5]} intensity={2.4} />
-              <Suspense fallback={null}>
-                <PlanetBall
-                  textureUrl={data.textureUrl}
-                  color={data.color}
-                  hasRings={!!data.hasRings}
-                />
-              </Suspense>
-              <OrbitControls enableZoom={false} enablePan={false}
-                minPolarAngle={Math.PI * 0.18} maxPolarAngle={Math.PI * 0.82} />
-            </Canvas>
+            <div className={styles.canvasSkeleton} aria-hidden="true">
+              <div className={styles.skeletonOrb} style={{ borderColor: `${data.color}55` }} />
+            </div>
+            {scene}
           </div>
 
+          <div className={styles.vignette} aria-hidden="true" />
+          <div className={styles.grain} aria-hidden="true" />
+
           {/* ── Left panel ── */}
-          <div className={styles.panel}>
+          <FocusTrap focusTrapOptions={{
+            escapeDeactivates: false, allowOutsideClick: true, clickOutsideDeactivates: false,
+            fallbackFocus: `.${styles.panel}`,
+          }}>
+          <div className={styles.panel} tabIndex={-1}>
 
             {/* Header */}
             <header className={styles.header}>
               <div className={styles.logoGroup}>
                 <span className={styles.planetDot}
-                  style={{ background: data.color, boxShadow: `0 0 7px ${data.color}bb` }} />
+                  style={{ background: data.color, boxShadow: `0 0 8px ${data.color}` }} />
                 <span className={styles.logoText}>{data.name.toUpperCase()}</span>
                 <span className={styles.roleBadge}
-                  style={{ color: data.color, borderColor: `${data.color}44`, background: `${data.color}12` }}>
+                  style={{ color: data.color, borderColor: `${data.color}44`, background: `${data.color}14` }}>
                   {data.role}
                 </span>
               </div>
-              <button className={styles.closeBtn} onClick={() => setCurrentPage(null)} aria-label="Close">
-                <X size={16} />
-              </button>
+              <div className={styles.headerActions}>
+                <button className={styles.navBtn} onClick={() => goBody(-1)} aria-label="Previous body">
+                  <ChevronLeft size={15} />
+                </button>
+                <button className={styles.navBtn} onClick={() => goBody(1)} aria-label="Next body">
+                  <ChevronRight size={15} />
+                </button>
+                <button className={styles.closeBtn} onClick={close} aria-label="Close">
+                  <X size={16} />
+                </button>
+              </div>
             </header>
 
             {/* Tab nav */}
-            <nav className={styles.tabNav} aria-label="Planet info sections">
+            <nav className={styles.tabNav} role="tablist" aria-label="Planet info sections"
+              onKeyDown={onTabKey}>
               {TABS.map(t => (
                 <button
                   key={t.id}
+                  role="tab"
+                  id={`ptab-${t.id}`}
+                  aria-controls={`ppanel-${t.id}`}
+                  aria-selected={tab === t.id}
+                  tabIndex={tab === t.id ? 0 : -1}
                   className={`${styles.tabBtn} ${tab === t.id ? styles.tabBtnActive : ''}`}
                   onClick={() => setTab(t.id)}
-                  style={tab === t.id ? { borderBottomColor: data.color } : {}}
-                  aria-selected={tab === t.id}
                 >
                   {t.label}
                   {t.live && <span className={styles.liveDot} style={{ background: data.color }} />}
+                  {tab === t.id && (
+                    <motion.span layoutId="ptab-underline" className={styles.tabUnderline}
+                      style={{ background: data.color }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 32 }} />
+                  )}
                 </button>
               ))}
             </nav>
 
             {/* Tab content */}
-            <div className={styles.tabContent}>
+            <div className={styles.tabContent} role="tabpanel"
+              id={`ppanel-${tab}`} aria-labelledby={`ptab-${tab}`} tabIndex={0}>
               <AnimatePresence mode="wait">
                 <motion.div
                   key={tab}
@@ -468,6 +719,7 @@ export default function PlanetPage() {
               </AnimatePresence>
             </div>
           </div>
+          </FocusTrap>
 
           {/* ── Bottom live bar ── */}
           <BottomBar name={data.name} color={data.color} />

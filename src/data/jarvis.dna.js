@@ -11,7 +11,7 @@ export const JARVIS_DNA = {
     verified: true,
     trust_level: 1,
     license_id: 'hid-jarvis-001',
-    verify_url: 'https://kingofyadav.in/verify/hid-jarvis-001',
+    verify_url: 'https://0dot.in/kingofyadav',
   },
 
   location: {
@@ -20,11 +20,11 @@ export const JARVIS_DNA = {
     city: 'New Delhi',
     country: 'India',
     flag: '🇮🇳',
-    home_zone: 'kingofyadav.in',
+    home_zone: '0dot.in/kingofyadav',
   },
 
   assets: [
-    { id: 'asset:domain:kingofyadav.in', type: 'domain',       label: 'kingofyadav.in',       url: 'https://kingofyadav.in' },
+    { id: 'asset:domain:0dot',            type: 'domain',       label: '0dot.in/kingofyadav',  url: 'https://0dot.in/kingofyadav' },
     { id: 'asset:project:royal-heritage', type: 'business',    label: 'Royal Heritage Resort', url: null },
     { id: 'asset:project:jhon-aamit-llp', type: 'organization',label: 'Jhon Aamit LLP',        url: null },
     { id: 'asset:project:nyf',            type: 'community',   label: 'National Youth Force',  url: null },

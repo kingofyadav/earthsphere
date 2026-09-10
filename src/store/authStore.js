@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist, devtools } from 'zustand/middleware'
+import { persist, createJSONStorage, devtools } from 'zustand/middleware'
 import { verifyPassword } from '../lib/crypto.js'
 import { secureStorage } from '../lib/securePersistStorage.js'
 
@@ -45,6 +45,7 @@ function normalizeUser(user = {}) {
     name,
     email,
     phone,
+    country:    user.country?.trim() || 'India',
     hdi:        user.hdi || generateHDI(name, phone, email),
     rpcBalance: user.rpcBalance ?? 1000,
     rcAddress:  user.rcAddress  ?? null,
@@ -157,7 +158,11 @@ export const useAuthStore = create(
     }),
     {
       name: 'earthsphere-auth',
-      storage: secureStorage,
+      // secureStorage is a string-based StateStorage (AES-GCM encrypt/decrypt).
+      // It MUST be wrapped so persist serialises the {state, version} envelope to
+      // JSON before encrypting — passing it raw stores "[object Object]" and the
+      // session silently fails to rehydrate (appears logged out on every reload).
+      storage: createJSONStorage(() => secureStorage),
       partialize: s => ({
         isLoggedIn: s.isLoggedIn, user: s.user, savedUser: s.savedUser,
         savedEmail: s.savedEmail, passwordHash: s.passwordHash,

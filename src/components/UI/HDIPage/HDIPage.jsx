@@ -491,6 +491,7 @@ export default function HDIPage() {
                     { k: 'HDI',      v: user?.hdi || '—',     mono: true },
                     { k: 'Name',     v: user?.name || '—',    mono: false },
                     { k: 'Email',    v: user?.email || '—',   mono: false },
+                    { k: 'Country',  v: user?.country || '—', mono: false },
                     { k: 'Pub Key',  v: mockKey,              mono: true,  dim: true },
                     { k: 'Protocol', v: 'HDI v0.1-alpha',     mono: true },
                   ].map(({ k, v, mono, dim }) => (

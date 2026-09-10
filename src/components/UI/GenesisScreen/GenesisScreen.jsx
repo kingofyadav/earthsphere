@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { User, Phone, Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react'
+import { User, Phone, Mail, Lock, Eye, EyeOff, ArrowLeft, MapPin } from 'lucide-react'
 import { useAuthStore, generateHDI } from '../../../store/authStore'
 import { useEarthStore } from '../../../store/earthStore'
 import { hashPassword } from '../../../lib/crypto'
@@ -30,6 +30,7 @@ export default function GenesisScreen() {
   const [step,     setStep]     = useState('identity')
   const [name,     setName]     = useState('')
   const [phone,    setPhone]    = useState('')
+  const [country,  setCountry]  = useState('India')
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
   const [confirm,  setConfirm]  = useState('')
@@ -57,7 +58,7 @@ export default function GenesisScreen() {
   }
 
   function resetForm() {
-    setStep('identity'); setName(''); setPhone(''); setEmail('')
+    setStep('identity'); setName(''); setPhone(''); setCountry('India'); setEmail('')
     setPassword(''); setConfirm(''); setError(''); setShowPw(false)
   }
 
@@ -65,6 +66,7 @@ export default function GenesisScreen() {
     e.preventDefault()
     if (!name.trim())                          { setError('Enter your full name.'); return }
     if (phone.replace(/\D/g, '').length < 4)  { setError('Enter a valid phone number.'); return }
+    if (!country.trim())                       { setError('Enter your country.'); return }
     setError(''); setStep('secure')
   }
 
@@ -81,7 +83,7 @@ export default function GenesisScreen() {
       new Promise(r => setTimeout(r, 1800)),
       hashPassword(password),
     ])
-    login({ name, phone, email, hdi, passwordHash, createdAt: Date.now() })
+    login({ name, phone, country: country.trim(), email, hdi, passwordHash, createdAt: Date.now() })
     setStep('complete')
   }
 
@@ -151,9 +153,17 @@ export default function GenesisScreen() {
                       value={phone} onChange={e => setPhone(e.target.value)} />
                   </div>
                 </Field>
+                <Field id="g-country" label="Country">
+                  <div className={styles.inputWrap}>
+                    <MapPin size={15} className={styles.inputIcon} />
+                    <input id="g-country" className={styles.input} type="text"
+                      placeholder="India" autoComplete="country-name"
+                      value={country} onChange={e => setCountry(e.target.value)} />
+                  </div>
+                </Field>
                 {error && <p className={styles.error}>{error}</p>}
                 <button type="submit" className={styles.submit}
-                  disabled={!name.trim() || phone.replace(/\D/g, '').length < 4}>
+                  disabled={!name.trim() || phone.replace(/\D/g, '').length < 4 || !country.trim()}>
                   Continue →
                 </button>
               </form>

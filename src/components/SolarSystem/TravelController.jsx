@@ -2,7 +2,13 @@ import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useTravelStore } from '../../store/travelStore'
+import { useTourStore } from '../../store/tourStore'
+import { useEarthStore } from '../../store/earthStore'
 import { liveTravel, planetRefs } from '../../travel/travelState'
+
+// Bodies that open their own page on arrival. Earth opens its hub on click and
+// the galaxy stop has no page, so both are excluded.
+const NO_ARRIVAL_PAGE = new Set(['Earth', 'Milky Way'])
 
 const _target   = new THREE.Vector3()
 const _camPos   = new THREE.Vector3()
@@ -88,6 +94,10 @@ export default function TravelController({ orbitControlsRef, scale }) {
         orbitControlsRef.current.target.copy(_target)
         orbitControlsRef.current.enabled = true
         orbitControlsRef.current.update()
+      }
+      // Reveal the destination's info page — but never mid auto-tour
+      if (!useTourStore.getState().isTouring && !NO_ARRIVAL_PAGE.has(targetPlanetName)) {
+        useEarthStore.getState().setCurrentPage(targetPlanetName)
       }
       endTravel()
       liveTravel.traveling = false

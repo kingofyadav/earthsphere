@@ -26,15 +26,19 @@ export function prettyHost(url) {
   try { return new URL(normalizeUrl(url)).host } catch { return url }
 }
 
-// Open a file from the device. File System Access API where available,
-// otherwise fall back to a hidden <input type="file"> click.
-export async function openDeviceFile(fallbackInput) {
+// Open a file from the device. Uses the File System Access API where available,
+// otherwise falls back to a transient <input type="file"> — no DOM ref needed.
+export async function openDeviceFile() {
   if (typeof window !== 'undefined' && window.showOpenFilePicker) {
     try {
       const [handle] = await window.showOpenFilePicker()
       return handle ? handle.name : null
     } catch { return null }
   }
-  fallbackInput?.click()
+  if (typeof document !== 'undefined') {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.click()
+  }
   return null
 }

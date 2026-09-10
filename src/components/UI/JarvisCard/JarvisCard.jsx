@@ -19,13 +19,13 @@ const ASSET_ICON = {
 const TRUST_LABELS = ['Unverified', 'Self-Sovereign', 'Public Verified', 'Chain Stamped']
 
 const QUICK_LINKS = [
-  { label: 'Blog',        href: 'https://kingofyadav.in/pages/blog.html' },
-  { label: 'Work',        href: 'https://kingofyadav.in/pages/professional.html' },
-  { label: 'Collaborate', href: 'https://kingofyadav.in/pages/collaboration.html' },
-  { label: 'Wallet',      href: 'https://kingofyadav.in/wallet/' },
+  { label: 'Profile',     href: 'https://0dot.in/kingofyadav' },
+  { label: 'Explore',     href: 'https://0dot.in/explore' },
+  { label: 'Communities', href: 'https://0dot.in/c' },
+  { label: 'About',       href: 'https://0dot.in/about' },
 ]
 
-const CHAT_API    = 'https://kingofyadav.in/api/jarvis-chat'
+const CHAT_API    = 'https://0dot.in/api/jarvis-chat'
 const WELCOME_MSG = {
   role: 'assistant',
   content: "Hi! I'm Jarvis — Amit's AI assistant. Ask me about his work, services, ventures, or the HI platform.",
@@ -65,13 +65,14 @@ export default function JarvisCard() {
     }
   }, [messages, tab])
 
-  useEffect(() => {
-    if (isJarvisOpen) {
-      setTab(jarvisTab || 'profile')
-    } else {
-      setInput('')
-    }
-  }, [isJarvisOpen, jarvisTab])
+  // React to open/close and requested-tab changes during render (React's
+  // "adjusting state when a prop changes" pattern) — no effect, no cascading render.
+  const [synced, setSynced] = useState({ open: isJarvisOpen, tab: jarvisTab })
+  if (synced.open !== isJarvisOpen || synced.tab !== jarvisTab) {
+    setSynced({ open: isJarvisOpen, tab: jarvisTab })
+    if (isJarvisOpen) setTab(jarvisTab || 'profile')
+    else setInput('')
+  }
 
   async function sendMessage() {
     const text = input.trim()

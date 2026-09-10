@@ -140,14 +140,16 @@ export default function EnvPanel({ lat, lon, onOverlay, activeOverlays }) {
   /* Keep currentPos ref in sync so the interval always uses the latest position */
   useEffect(() => { currentPos.current = { lat, lon } }, [lat, lon])
 
-  /* Initial fetch + refresh every 10 min at current position */
+  /* Initial fetch + refresh every 10 min at current position.
+     The first fetch is kicked off on the next tick so no state update runs
+     synchronously inside the effect body. */
   useEffect(() => {
-    fetchAll(lat, lon)
+    const kick = setTimeout(() => fetchAll(lat, lon), 0)
     timerRef.current = setInterval(
       () => fetchAll(currentPos.current.lat, currentPos.current.lon),
       10 * 60 * 1000
     )
-    return () => clearInterval(timerRef.current)
+    return () => { clearTimeout(kick); clearInterval(timerRef.current) }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Re-fetch when position moves > 0.4° (~45 km) */

@@ -124,12 +124,28 @@ export function calcPlanetLiveData(name) {
   const cosEl = dot / (earth.r * distEarth)
   const elongation = Math.acos(Math.max(-1, Math.min(1, cosEl))) * (180 / Math.PI)
 
+  // Heliocentric ecliptic longitudes — used to draw the live top-down orbit map
+  const earthLon = normDeg(Math.atan2(earth.y, earth.x) * (180 / Math.PI))
+
+  // Phase angle (Sun–planet–Earth) and illuminated fraction of the disc as seen
+  // from Earth — cheap, and a nice "pro" touch for the inner planets.
+  const rp = planet.r, re = earth.r
+  const cosPhase = (rp * rp + distEarth * distEarth - re * re) / (2 * rp * distEarth)
+  const phaseAngle = Math.acos(Math.max(-1, Math.min(1, cosPhase))) * (180 / Math.PI)
+  const illumFrac = (1 + Math.cos(phaseAngle * Math.PI / 180)) / 2
+
   return {
     distSun: planet.r,
     distEarth,
     orbSpeed,
     elongation,
     eclipticLon,
+    earthLon,
+    helioLon: eclipticLon,
+    earthDistSun: earth.r,
+    semiMajor: planet.a,
+    phaseAngle,
+    illumFrac,
     lightFromSun: planet.r * 8.317,
     lightFromEarth: distEarth * 8.317,
   }

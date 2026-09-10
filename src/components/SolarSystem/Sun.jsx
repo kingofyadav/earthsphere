@@ -19,7 +19,6 @@ export default function Sun() {
   const [sunMap] = useTexture(['/textures/planets/sun.jpg'])
   const timeScale      = useEarthStore((s) => s.timeScale)
   const setCurrentPage = useEarthStore((s) => s.setCurrentPage)
-  const setAppStage    = useEarthStore((s) => s.setAppStage)
   const isLoggedIn     = useAuthStore((s) => s.isLoggedIn)
   const openLoginModal = useAuthStore((s) => s.openLoginModal)
   const [hovered, setHovered] = useState(false)
