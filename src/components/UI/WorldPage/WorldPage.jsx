@@ -2,13 +2,14 @@ import { useState, useMemo, useRef, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   X, Search, Globe, Users, Landmark, MapPin, SortAsc, Handshake,
-  Plus, TrendingUp, Send, Heart, Trash2, MessageSquare, Newspaper,
+  Plus, TrendingUp, Send, Heart, Trash2, MessageSquare, Newspaper, Vote,
 } from 'lucide-react'
 import { useEarthStore }     from '../../../store/earthStore'
 import { useAuthStore }      from '../../../store/authStore'
 import { useNationStore }    from '../../../store/nationStore'
 import { useCommunityStore } from '../../../store/communityStore'
 import { PAGE } from '../../../lib/pages'
+import { WorldGovernance, WorldAtlas } from './WorldGlobal'
 import styles from './WorldPage.module.css'
 
 /* ── helpers ── */
@@ -343,8 +344,10 @@ function NationsView({ nations, userHdi, onView, onJoin, onLeave, onFoundNation 
 
 /* ── Main export ───────────────────────────────────────────────────────────── */
 const MAIN_TABS = [
-  { id: 'nations', label: 'Nations',   Icon: Globe         },
-  { id: 'feed',    label: 'Community', Icon: MessageSquare },
+  { id: 'nations',    label: 'Nations',    Icon: Globe         },
+  { id: 'governance', label: 'Governance', Icon: Vote          },
+  { id: 'atlas',      label: 'Atlas',      Icon: MapPin        },
+  { id: 'feed',       label: 'Community',  Icon: MessageSquare },
 ]
 
 export default function WorldPage() {
@@ -497,7 +500,7 @@ export default function WorldPage() {
                 animate={{ opacity: 1, y: 0, transition: { duration: 0.2 } }}
                 exit={{ opacity: 0, transition: { duration: 0.12 } }}
               >
-                {mainTab === 'nations' ? (
+                {mainTab === 'nations' && (
                   <NationsView
                     nations={nations}
                     userHdi={userHdi}
@@ -506,11 +509,11 @@ export default function WorldPage() {
                     onLeave={handleLeave}
                     onFoundNation={handleFoundNation}
                   />
-                ) : (
-                  <CommunityFeed
-                    user={user}
-                    openLogin={openLoginModal}
-                  />
+                )}
+                {mainTab === 'governance' && <WorldGovernance onOpenNation={openNation} />}
+                {mainTab === 'atlas'      && <WorldAtlas onOpenNation={openNation} />}
+                {mainTab === 'feed' && (
+                  <CommunityFeed user={user} openLogin={openLoginModal} />
                 )}
               </motion.div>
             </AnimatePresence>

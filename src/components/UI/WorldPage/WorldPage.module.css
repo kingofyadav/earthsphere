@@ -458,3 +458,108 @@
   .sortLabel { display: none; }
   .inner { padding: 1.25rem 1rem 5rem; }
 }
+
+/* ═══════════════════════════════════════════
+   GLOBAL VIEWS — Governance / Atlas tabs
+═══════════════════════════════════════════ */
+.gWrap { display: flex; flex-direction: column; gap: 1.1rem; }
+
+.gStatStrip {
+  display: flex; align-items: center; justify-content: space-around;
+  flex-wrap: wrap; gap: 0.5rem;
+  padding: 0.85rem 1rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px;
+}
+.gStat { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; padding: 0 0.75rem; }
+.gStatVal { font-family: var(--font-mono); font-size: 1.05rem; font-weight: 700; color: #FFD700; }
+.gStatLbl { font-family: var(--font-primary); font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.4); }
+
+.gSection { display: flex; flex-direction: column; gap: 0.4rem; }
+.gSectionLabel {
+  display: flex; align-items: center; gap: 0.35rem;
+  margin: 0 0 0.15rem;
+  font-family: var(--font-mono); font-size: 0.58rem; font-weight: 700;
+  letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,215,0,0.6);
+}
+
+.gEmpty {
+  display: flex; flex-direction: column; align-items: center; gap: 0.6rem;
+  padding: 3rem 1rem; color: rgba(255,255,255,0.28); text-align: center;
+}
+.gEmpty p { margin: 0; font-size: 0.85rem; }
+.gMuted { margin: 0; font-size: 0.78rem; color: rgba(255,255,255,0.3); line-height: 1.5; }
+
+/* proposal rows */
+.gPropRow {
+  display: flex; align-items: center; gap: 0.7rem;
+  width: 100%; padding: 0.65rem 0.8rem; text-align: left;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.gPropRow:hover { background: rgba(255,215,0,0.06); border-color: rgba(255,215,0,0.2); }
+.gPropFlag { font-size: 1.3rem; flex-shrink: 0; line-height: 1; }
+.gPropText { display: flex; flex-direction: column; gap: 0.15rem; flex: 1; min-width: 0; }
+.gPropTitle {
+  font-family: var(--font-primary); font-size: 0.82rem; font-weight: 600; color: rgba(255,255,255,0.9);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.gPropMeta {
+  display: inline-flex; align-items: center; gap: 0.25rem; flex-wrap: wrap;
+  font-family: var(--font-mono); font-size: 0.62rem; color: rgba(255,255,255,0.4);
+}
+.gPropBar {
+  flex-shrink: 0; width: 54px; height: 5px; border-radius: 3px;
+  background: rgba(255,107,107,0.25); overflow: hidden;
+}
+.gPropBarFill { display: block; height: 100%; background: #4ade80; }
+
+/* atlas map + legend */
+.gMap {
+  width: 100%; height: auto; aspect-ratio: 2 / 1;
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; background: #070a16; display: block;
+}
+.gLegend { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+.gLegendItem {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.25rem 0.55rem; font-size: 0.68rem; color: rgba(255,255,255,0.65);
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px; cursor: pointer; transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.gLegendItem:hover { background: rgba(255,255,255,0.09); }
+.gLegendDot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* treasury ranking */
+.gRankRow {
+  display: flex; align-items: center; gap: 0.55rem; width: 100%;
+  padding: 0.5rem 0.7rem; text-align: left;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 9px; cursor: pointer; transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.gRankRow:hover { background: rgba(255,215,0,0.06); }
+.gRankNum { font-family: var(--font-mono); font-size: 0.7rem; color: rgba(255,255,255,0.3); width: 1rem; flex-shrink: 0; }
+.gRankFlag { font-size: 1rem; flex-shrink: 0; }
+.gRankName { font-family: var(--font-primary); font-size: 0.78rem; color: rgba(255,255,255,0.8); flex-shrink: 0; min-width: 5rem; }
+.gRankBar { flex: 1; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.06); overflow: hidden; }
+.gRankBarFill { display: block; height: 100%; background: linear-gradient(90deg, #FF9933, #FFD700); }
+.gRankVal { font-family: var(--font-mono); font-size: 0.72rem; color: #FFD700; flex-shrink: 0; }
+
+/* world relations */
+.gRelRow {
+  display: flex; align-items: center; gap: 0.55rem;
+  padding: 0.5rem 0.7rem; font-size: 0.76rem; color: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 9px;
+}
+.gRelRow span:nth-child(2) { flex: 1; min-width: 0; }
+.gRelConflict { border-color: rgba(255,107,107,0.25); background: rgba(255,107,107,0.05); }
+.gRelIcon { color: rgba(0,229,255,0.7); flex-shrink: 0; }
+.gRelBadge {
+  flex-shrink: 0; font-family: var(--font-mono); font-size: 0.56rem; letter-spacing: 0.06em;
+  padding: 0.15rem 0.45rem; border-radius: 999px;
+  background: rgba(74,222,128,0.12); color: #4ade80; border: 1px solid rgba(74,222,128,0.3);
+}
+.gRelBadgeWar { background: rgba(255,107,107,0.12); color: #ff6b6b; border-color: rgba(255,107,107,0.3); }

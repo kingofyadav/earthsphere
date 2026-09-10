@@ -14,6 +14,7 @@ import { useGovernanceStore } from '../../../store/governanceStore'
 import { useRelationStore } from '../../../store/relationStore'
 import { rcGetStats, rcGetBalance, rcNewWallet } from '../../../lib/rupeecoin'
 import { PAGE } from '../../../lib/pages'
+import TerritoryMap from '../common/TerritoryMap'
 import styles from './NationPanel.module.css'
 
 /* ─────────────────── helpers ─────────────────── */
@@ -45,44 +46,15 @@ function fmtArea(km2) {
 
 /* ─────────────────── Mini territory map ─────────────────── */
 function MiniMap({ zones, capitalId }) {
-  const W = 320, H = 160
   if (!zones.length) return <div className={styles.miniMapEmpty}>No territory claimed yet</div>
-
-  const lats = zones.map(z => z.lat)
-  const lngs = zones.map(z => z.lng)
-  let spanLng = Math.max((Math.max(...lngs) - Math.min(...lngs)) + 26, 44)
-  let spanLat = spanLng / 2
-  let cLng = (Math.min(...lngs) + Math.max(...lngs)) / 2
-  let cLat = (Math.min(...lats) + Math.max(...lats)) / 2
-  cLng = Math.max(-180 + spanLng / 2, Math.min(180 - spanLng / 2, cLng))
-  cLat = Math.max(-90 + spanLat / 2, Math.min(90 - spanLat / 2, cLat))
-
-  const left = cLng - spanLng / 2, top = cLat + spanLat / 2
-  const x = lng => ((lng - left) / spanLng) * W
-  const y = lat => ((top - lat) / spanLat) * H
-  const step = spanLng > 120 ? 30 : spanLng > 60 ? 15 : 10
-  const grid = (start, end) => { const a = []; for (let v = Math.ceil(start / step) * step; v <= end; v += step) a.push(v); return a }
-
+  const painted = zones.map(z => ({ ...z, color: z.id === capitalId ? '#FFD700' : '#00e5ff' }))
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className={styles.miniMap} role="img" aria-label="Territory map" preserveAspectRatio="xMidYMid slice">
-      <rect width={W} height={H} fill="#070a16" />
-      {grid(left, left + spanLng).map(v => <line key={'x' + v} x1={x(v)} y1="0" x2={x(v)} y2={H} stroke="rgba(255,255,255,0.05)" />)}
-      {grid(cLat - spanLat / 2, cLat + spanLat / 2).map(v => (
-        <line key={'y' + v} x1="0" y1={y(v)} x2={W} y2={y(v)}
-          stroke={v === 0 ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.05)'} />
-      ))}
-      {zones.map(z => {
-        const cap = z.id === capitalId
-        return (
-          <g key={z.id}>
-            <circle cx={x(z.lng)} cy={y(z.lat)} r={Math.max(4, (z.radius / spanLng) * W * 0.9)}
-              fill={cap ? 'rgba(255,215,0,0.16)' : 'rgba(0,229,255,0.14)'}
-              stroke={cap ? '#FFD700' : '#00e5ff'} strokeWidth="1" />
-            <circle cx={x(z.lng)} cy={y(z.lat)} r="2" fill={cap ? '#FFD700' : '#00e5ff'} />
-          </g>
-        )
-      })}
-    </svg>
+    <TerritoryMap
+      zones={painted}
+      capitalIds={capitalId ? [capitalId] : []}
+      className={styles.miniMap}
+      ariaLabel={`${zones.length} zone territory map`}
+    />
   )
 }
 
