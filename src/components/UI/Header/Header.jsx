@@ -118,8 +118,7 @@ export default function Header() {
             className={styles.brandBtn}
             data-active={currentPage === PAGE.WORLD}
             onClick={() => { setCurrentPage(currentPage === PAGE.WORLD ? null : PAGE.WORLD); closeMenu() }}
-            aria-label="Open World community"
-            title="World · Community"
+            title="Open the World community"
           >
             <span className={styles.brandName}>Digital World</span>
             <span className={styles.brandTagline}>community</span>

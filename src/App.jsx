@@ -72,16 +72,6 @@ export default function App() {
   useKeyboardShortcuts()
   useSystemsBridge()
 
-  // Defer the WebGL scene (the ~1.4 MB three/fiber/drei chunk) until the browser
-  // is idle, so it doesn't compete with first paint / interactivity.
-  const [sceneReady, setSceneReady] = useState(false)
-  useEffect(() => {
-    const ric = window.requestIdleCallback || ((cb) => setTimeout(cb, 200))
-    const cancel = window.cancelIdleCallback || clearTimeout
-    const id = ric(() => setSceneReady(true), { timeout: 1500 })
-    return () => cancel(id)
-  }, [])
-
   const setCurrentNationId = useEarthStore((s) => s.setCurrentNationId)
   const setCurrentPage     = useEarthStore((s) => s.setCurrentPage)
   const setAppStage        = useEarthStore((s) => s.setAppStage)
@@ -95,6 +85,21 @@ export default function App() {
   const targetPlanetName   = useTravelStore((s) => s.targetPlanetName)
   const isTouring          = useTourStore((s) => s.isTouring)
   const isLoggedIn         = useAuthStore((s) => s.isLoggedIn)
+
+  // Mount the WebGL scene (the ~1.4 MB three/fiber/drei chunk + a live render
+  // loop) only when it's actually needed. Once we're past the landing splash it
+  // renders below; on the pristine first-visit landing it waits for the first
+  // real user gesture, so first paint / a passive tab never pay the cost.
+  const [sceneArmed, setSceneArmed] = useState(false)
+  const stillLanding = appStage === 'landing'
+  useEffect(() => {
+    if (sceneArmed || !stillLanding) return
+    const arm = () => setSceneArmed(true)
+    const evs = ['pointerdown', 'keydown', 'wheel', 'touchstart', 'mousemove']
+    const opts = { once: true, passive: true }
+    evs.forEach((e) => window.addEventListener(e, arm, opts))
+    return () => evs.forEach((e) => window.removeEventListener(e, arm, opts))
+  }, [sceneArmed, stillLanding])
 
   // Deep-link: ?nation=<id> — jump straight to the nation, past the landing hero
   useEffect(() => {
@@ -129,14 +134,17 @@ export default function App() {
       data-theme={resolvedTheme}
       data-dev={isDevMode ? 'true' : 'false'}
     >
-      {/* 3D scene — mounted once the browser is idle; error-bounded against WebGL crashes */}
+      {/* 3D scene — mounted on demand; error-bounded against WebGL crashes.
+          Until then the landing shows the static sky below. */}
       <main className={styles.canvas}>
-        {sceneReady && (
+        {(sceneArmed || appStage !== 'landing') ? (
           <ErrorBoundary fallback={CANVAS_ERROR}>
             <Suspense fallback={null}>
               <SolarSystemScene />
             </Suspense>
           </ErrorBoundary>
+        ) : (
+          <div className={styles.staticSky} aria-hidden="true" />
         )}
       </main>
 

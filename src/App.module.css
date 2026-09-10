@@ -24,6 +24,27 @@
   touch-action: none;
 }
 
+/* Static backdrop shown on the pristine landing before the WebGL scene is armed.
+   Pure CSS — costs nothing, so first paint / Lighthouse never touch WebGL. */
+.staticSky {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(1200px 600px at 70% 45%, rgba(60, 90, 160, 0.18), transparent 60%),
+    radial-gradient(2px 2px at 20% 30%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(2px 2px at 80% 20%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 45% 70%, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1px 1px at 65% 85%, rgba(255, 255, 255, 0.45), transparent),
+    radial-gradient(1.5px 1.5px at 15% 80%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 90% 60%, rgba(255, 255, 255, 0.4), transparent),
+    #01020a;
+}
+.root[data-theme="day"] .staticSky {
+  background:
+    radial-gradient(1200px 600px at 70% 45%, rgba(120, 160, 220, 0.22), transparent 60%),
+    #f4f7fb;
+}
+
 /* Left / right vignette faders */
 .canvas::before,
 .canvas::after {

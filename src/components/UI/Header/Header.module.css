@@ -160,15 +160,15 @@
   letter-spacing: 0.04em;
 }
 .clockSec {
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   font-weight: 600;
   color: var(--green);
 }
 .clockDate {
   font-family: var(--font-mono);
-  font-size: 0.56rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink-mute);
 }

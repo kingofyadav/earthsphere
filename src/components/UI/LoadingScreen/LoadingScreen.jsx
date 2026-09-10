@@ -4,10 +4,13 @@ import styles from './LoadingScreen.module.css'
 
 export default function LoadingScreen() {
   const isLoaded = useEarthStore((s) => s.isLoaded)
+  const appStage = useEarthStore((s) => s.appStage)
 
+  // The landing is served static (boot splash + hero) — the loader is only for
+  // the transition into the live scene, when textures are actually fetching.
   return (
     <AnimatePresence>
-      {!isLoaded && (
+      {!isLoaded && appStage !== 'landing' && (
         <motion.div
           className={styles.screen}
           exit={{ opacity: 0 }}
