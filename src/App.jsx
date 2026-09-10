@@ -47,6 +47,25 @@ const CANVAS_ERROR = (
   </div>
 )
 
+function PageErrorFallback() {
+  const setCurrentPage = useEarthStore((s) => s.setCurrentPage)
+  return (
+    <div style={{ position:'fixed', inset:0, zIndex:3000, display:'flex', alignItems:'center',
+      justifyContent:'center', background:'rgba(2,3,10,0.92)', color:'#fff', textAlign:'center', padding:'2rem' }}>
+      <div>
+        <p style={{ fontSize:'2rem', marginBottom:'0.5rem' }}>⚠️</p>
+        <p>This page hit an error.</p>
+        <p style={{ opacity:0.5, margin:'0.25rem 0 1rem', fontSize:'0.78rem' }}>The rest of EarthSphere is still running.</p>
+        <button onClick={() => setCurrentPage(null)} style={{ padding:'0.5rem 1.1rem', borderRadius:'9px',
+          border:'1px solid rgba(255,255,255,0.2)', background:'rgba(255,255,255,0.08)', color:'#fff', cursor:'pointer' }}>
+          Back to Solar System
+        </button>
+      </div>
+    </div>
+  )
+}
+const PAGE_ERROR = <PageErrorFallback />
+
 export default function App() {
   useThemeMode()
   useDevMode()
@@ -132,19 +151,23 @@ export default function App() {
       {/* Claim modal eager — needed immediately when user clicks globe */}
       <ClaimModal />
 
-      {/* All heavy pages lazy-loaded in one Suspense boundary */}
-      <Suspense fallback={null}>
-        <GenesisScreen />
-        <HDIPage />
-        <EarthHero />
-        <PlanetPage />
-        <JarvisCard />
-        <NationFounder />
-        <NationPanel />
-        <WorldPage />
-        <SurfacePage />
-        <EarthSurfacePage />
-      </Suspense>
+      {/* All heavy pages lazy-loaded in one Suspense boundary. Error-bounded so a
+          render crash in one page shows a recoverable card, not a blank app;
+          the boundary clears itself when the user navigates elsewhere. */}
+      <ErrorBoundary resetKey={`${currentPage}:${appStage}`} fallback={PAGE_ERROR}>
+        <Suspense fallback={null}>
+          <GenesisScreen />
+          <HDIPage />
+          <EarthHero />
+          <PlanetPage />
+          <JarvisCard />
+          <NationFounder />
+          <NationPanel />
+          <WorldPage />
+          <SurfacePage />
+          <EarthSurfacePage />
+        </Suspense>
+      </ErrorBoundary>
 
       {/* Dev overlay in its own boundary so it never crashes the app */}
       <Suspense fallback={null}>

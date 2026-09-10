@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowLeft, Globe, Landmark, Vote, Handshake,
@@ -505,10 +505,24 @@ function GovernanceTab({ nation, proposals, userHdi, isCitizen, createProposal, 
 
 /* ─────────────────── DiplomacyTab ─────────────────── */
 function DiplomacyTab({ nation, nations, isFounder, proposeAlliance, acceptAlliance, rejectAlliance, proposeTreaty, acceptTreaty, rejectTreaty, detectConflicts, resolveConflict, zones }) {
-  const alliances = useRelationStore(s => s.alliances.filter(a => a.nation_a === nation.id || a.nation_b === nation.id))
-  const treaties  = useRelationStore(s => s.treaties.filter(t => t.nation_a === nation.id || t.nation_b === nation.id))
-  const conflicts = useRelationStore(s => s.conflicts.filter(c =>
-    (c.nation_a === nation.id || c.nation_b === nation.id) && c.status !== 'resolved'))
+  // Select the raw arrays (stable refs) and filter in useMemo — filtering inside
+  // the selector returns a new array every render and infinite-loops useSyncExternalStore.
+  const allAlliances = useRelationStore(s => s.alliances)
+  const allTreaties  = useRelationStore(s => s.treaties)
+  const allConflicts = useRelationStore(s => s.conflicts)
+  const nid = nation.id
+  const alliances = useMemo(
+    () => allAlliances.filter(a => a.nation_a === nid || a.nation_b === nid),
+    [allAlliances, nid],
+  )
+  const treaties = useMemo(
+    () => allTreaties.filter(t => t.nation_a === nid || t.nation_b === nid),
+    [allTreaties, nid],
+  )
+  const conflicts = useMemo(
+    () => allConflicts.filter(c => (c.nation_a === nid || c.nation_b === nid) && c.status !== 'resolved'),
+    [allConflicts, nid],
+  )
   const [allyTarget, setAllyTarget]     = useState('')
   const [treatyTarget, setTreatyTarget] = useState('')
   const [treatyType, setTreatyType]     = useState('trade')
