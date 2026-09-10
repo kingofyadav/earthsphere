@@ -54,7 +54,6 @@ function Clock() {
 }
 
 export default function Header() {
-  const resolvedTheme    = useEarthStore((s) => s.resolvedTheme)
   const themeMode        = useEarthStore((s) => s.themeMode)
   const setThemeMode     = useEarthStore((s) => s.setThemeMode)
   const sceneBg          = useEarthStore((s) => s.sceneBg)
@@ -72,7 +71,6 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const closeMenu = () => setMenuOpen(false)
 
-  const isDark  = resolvedTheme !== 'day'
   const bgKey   = sceneBg === 'glass' ? 'glass' : 'off'
 
   function toggleGlass() {
@@ -109,7 +107,7 @@ export default function Header() {
             title="HDI Profile"
           >
             <img
-              src={isDark ? '/logo/night-logo.png' : '/logo/day-logo.png'}
+              src="/logo/mark.png"
               alt=""
               className={styles.logo}
               width="46"

@@ -25,7 +25,6 @@ export default function AuthModal() {
   const isLoginOpen       = useAuthStore(s => s.isLoginOpen)
   const loginWithPassword = useAuthStore(s => s.loginWithPassword)
   const closeLoginModal   = useAuthStore(s => s.closeLoginModal)
-  const resolvedTheme     = useEarthStore(s => s.resolvedTheme)
   const appStage          = useEarthStore(s => s.appStage)
   const setAppStage       = useEarthStore(s => s.setAppStage)
   const setSceneBg        = useEarthStore(s => s.setSceneBg)
@@ -37,8 +36,6 @@ export default function AuthModal() {
   const [error,     setError]     = useState('')
   const [loading,   setLoading]   = useState(false)
   const [socialMsg, setSocialMsg] = useState('')
-
-  const isDark = resolvedTheme !== 'day'
 
   function closeAndReset() {
     closeLoginModal()
@@ -102,7 +99,7 @@ export default function AuthModal() {
               </button>
 
               <div className={styles.brand}>
-                <img src={isDark ? '/logo/night-logo.png' : '/logo/day-logo.png'}
+                <img src="/logo/mark.png"
                   alt="logo" className={styles.brandLogo} width="34" height="34" />
                 <div className={styles.brandText}>
                   <span className={styles.brandName}>Digital World</span>
