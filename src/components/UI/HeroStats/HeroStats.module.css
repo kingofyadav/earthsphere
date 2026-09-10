@@ -31,7 +31,7 @@
 
 .label {
   font-family: var(--font-mono);
-  font-size: 0.58rem;
+  font-size: 0.75rem;
   letter-spacing: 0.15em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.35);
@@ -52,7 +52,7 @@
   .row { bottom: 5.2rem; }
   .stat { padding: 0 1rem; }
   .value { font-size: 1.15rem; }
-  .label { font-size: 0.52rem; }
+  .label { font-size: 0.68rem; }
 }
 
 @media (max-width: 400px) {

@@ -65,6 +65,7 @@ export default defineConfig({
   },
   build: {
     outDir,
+    sourcemap: true,
     // vendor-drei bundles three + fiber + drei (rolldown merges them since they
     // share one lazy entry, SolarSystemScene). It's ~1.4 MB, irreducible, and
     // loaded on demand — the initial bundle is ~100 kB. Limit sits just above it.

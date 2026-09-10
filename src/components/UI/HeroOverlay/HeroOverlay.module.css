@@ -17,7 +17,7 @@
 
 .eyebrow {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   letter-spacing: 0.22em;
   color: rgba(77, 166, 255, 0.7);
   text-transform: uppercase;
@@ -136,7 +136,7 @@
 
 .tapHint {
   font-family: var(--font-mono);
-  font-size: 0.58rem;
+  font-size: 0.72rem;
   letter-spacing: 0.18em;
   color: rgba(255, 255, 255, 0.2);
   text-transform: uppercase;

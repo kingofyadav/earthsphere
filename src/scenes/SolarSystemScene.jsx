@@ -5,6 +5,7 @@ import { OrbitControls, useProgress } from '@react-three/drei'
 import { useEarthStore } from '../store/earthStore'
 import { useTourStore } from '../store/tourStore'
 import { useDeviceType } from '../hooks/useDeviceType'
+import { PAGE, PLANET_PAGE_NAMES } from '../lib/pages'
 import Starfield from '../components/Starfield'
 import MilkyWay from '../components/SolarSystem/MilkyWay'
 import DevOverlayR3F from '../components/UI/DevOverlay/DevOverlay'
@@ -84,14 +85,26 @@ function AutoRotateSync({ orbitControlsRef }) {
   return null
 }
 
+// Full-screen pages that completely occlude the scene canvas — no reason to keep
+// rendering (and burning CPU/GPU + battery) behind them.
+const COVERING_PAGES = new Set([
+  PAGE.HDI, PAGE.WORLD, PAGE.NATION, PAGE.SURFACE, PAGE.EARTH_SURFACE, PAGE.EARTH_HERO,
+  ...PLANET_PAGE_NAMES,
+])
+
 export default function SolarSystemScene() {
   const device          = useDeviceType()
   const isDevMode       = useEarthStore((s) => s.isDevMode)
+  const currentPage     = useEarthStore((s) => s.currentPage)
+  const appStage        = useEarthStore((s) => s.appStage)
   const { position, fov, scale } = DEVICE_CONFIG[device]
   const orbitControlsRef = useRef()
 
+  const covered = appStage === 'genesis' || COVERING_PAGES.has(currentPage)
+
   return (
     <Canvas
+      frameloop={covered ? 'never' : 'always'}
       camera={{ position, fov, near: 0.1, far: 10000 }}
       gl={{
         antialias: true,
@@ -100,7 +113,7 @@ export default function SolarSystemScene() {
         toneMapping: THREE.ACESFilmicToneMapping,
         toneMappingExposure: 1.25,
       }}
-      dpr={[1, device === 'mobile' ? 1.5 : 2.5]}
+      dpr={[1, device === 'mobile' ? 1.5 : 2]}
       performance={{ min: 0.5 }}
       style={{ background: 'transparent' }}
     >
