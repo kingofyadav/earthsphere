@@ -648,6 +648,8 @@ export default function PlanetPage() {
             {/* Header */}
             <header className={styles.header}>
               <div className={styles.logoGroup}>
+                <img src="/logo/mark.png" alt="EarthSphere" className={styles.brandMark} width="20" height="20" />
+                <span className={styles.brandDivider} aria-hidden="true" />
                 <span className={styles.planetDot}
                   style={{ background: data.color, boxShadow: `0 0 8px ${data.color}` }} />
                 <span className={styles.logoText}>{data.name.toUpperCase()}</span>

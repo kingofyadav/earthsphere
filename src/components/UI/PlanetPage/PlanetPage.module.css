@@ -121,8 +121,22 @@
 .logoGroup {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 10px;
   min-width: 0;
+}
+
+.brandMark {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.brandDivider {
+  width: 1px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.14);
+  flex-shrink: 0;
 }
 
 .planetDot {
@@ -739,7 +753,8 @@
 }
 
 @media (max-width: 479px) {
-  .roleBadge { display: none; }
+  .roleBadge     { display: none; }
+  .brandDivider  { display: none; }
   .ctaRow    { gap: 7px; }
   .statsGrid { grid-template-columns: 1fr; }
   .liveTime  { display: none; }
