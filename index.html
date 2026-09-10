@@ -43,9 +43,45 @@
       <link rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" />
     </noscript>
+    <style>
+      /* Boot splash — paints before any JS so FCP/LCP aren't gated on the bundle.
+         Removed by main.jsx once React has committed. */
+      #boot {
+        position: fixed; inset: 0; z-index: 9999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 1rem; padding: 2rem; text-align: center;
+        background: #05070f; color: #fff;
+        font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+        transition: opacity .45s ease;
+      }
+      #boot.boot-hide { opacity: 0; pointer-events: none; }
+      #boot img { width: 56px; height: 56px; }
+      #boot h1 {
+        margin: .2rem 0 0; font-size: clamp(1.5rem, 4vw, 2.4rem); font-weight: 600;
+        letter-spacing: -.02em; line-height: 1.15;
+      }
+      #boot span {
+        font-family: 'Space Mono', ui-monospace, monospace;
+        font-size: .62rem; letter-spacing: .22em; text-transform: uppercase;
+        color: rgba(255,255,255,.4);
+      }
+      #boot .ring {
+        width: 34px; height: 34px; border-radius: 50%;
+        border: 2px solid rgba(255,255,255,.12); border-top-color: rgba(255,255,255,.6);
+        animation: bootspin .9s linear infinite;
+      }
+      @keyframes bootspin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { #boot .ring { animation: none; } }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <div id="boot">
+      <img src="/logo/mark.png" alt="" width="56" height="56" />
+      <h1>Entering the Digital Universe</h1>
+      <div class="ring" aria-hidden="true"></div>
+      <span>Initializing deep&nbsp;space voyager</span>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useThemeMode } from './hooks/useThemeMode'
 import { useDevMode } from './hooks/useDevMode'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
@@ -72,6 +72,16 @@ export default function App() {
   useKeyboardShortcuts()
   useSystemsBridge()
 
+  // Defer the WebGL scene (the ~1.4 MB three/fiber/drei chunk) until the browser
+  // is idle, so it doesn't compete with first paint / interactivity.
+  const [sceneReady, setSceneReady] = useState(false)
+  useEffect(() => {
+    const ric = window.requestIdleCallback || ((cb) => setTimeout(cb, 200))
+    const cancel = window.cancelIdleCallback || clearTimeout
+    const id = ric(() => setSceneReady(true), { timeout: 1500 })
+    return () => cancel(id)
+  }, [])
+
   const setCurrentNationId = useEarthStore((s) => s.setCurrentNationId)
   const setCurrentPage     = useEarthStore((s) => s.setCurrentPage)
   const setAppStage        = useEarthStore((s) => s.setAppStage)
@@ -119,13 +129,15 @@ export default function App() {
       data-theme={resolvedTheme}
       data-dev={isDevMode ? 'true' : 'false'}
     >
-      {/* 3D scene — always rendered, error-bounded against WebGL crashes */}
+      {/* 3D scene — mounted once the browser is idle; error-bounded against WebGL crashes */}
       <main className={styles.canvas}>
-        <ErrorBoundary fallback={CANVAS_ERROR}>
-          <Suspense fallback={null}>
-            <SolarSystemScene />
-          </Suspense>
-        </ErrorBoundary>
+        {sceneReady && (
+          <ErrorBoundary fallback={CANVAS_ERROR}>
+            <Suspense fallback={null}>
+              <SolarSystemScene />
+            </Suspense>
+          </ErrorBoundary>
+        )}
       </main>
 
       {/* Scene background overlay */}

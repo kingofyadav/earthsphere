@@ -31,7 +31,7 @@ function LoadWatcher() {
     // when useTexture in child components synchronously updates the progress store
     if (useProgress.getState().progress >= 100) { fire(); return }
     const unsub = useProgress.subscribe(({ progress }) => { if (progress >= 100) fire() })
-    const fallback = setTimeout(fire, 8000)
+    const fallback = setTimeout(fire, 4000)
     return () => { unsub(); clearTimeout(fallback) }
   }, [setLoaded])
 

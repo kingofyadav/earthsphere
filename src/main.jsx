@@ -16,3 +16,13 @@ createRoot(document.getElementById('root')).render(
     <App />
   </StrictMode>,
 )
+
+// Retire the pre-JS boot splash once React has painted the app shell.
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    const boot = document.getElementById('boot')
+    if (!boot) return
+    boot.classList.add('boot-hide')
+    setTimeout(() => boot.remove(), 500)
+  })
+})
