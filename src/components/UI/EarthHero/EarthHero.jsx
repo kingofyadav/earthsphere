@@ -1,21 +1,13 @@
-import { useMemo, useRef, useState, useEffect, Suspense } from 'react'
+import { useMemo, useRef, useEffect, Suspense } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useTexture, OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  Search, Mic, ArrowRight, ArrowLeft, Monitor, Globe2, Globe,
-  Shield, MessageCircle, Users, MapPin,
-  Wallet, FileText, FolderOpen, LayoutDashboard, Hash, ExternalLink,
-} from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { useEarthStore } from '../../../store/earthStore'
-import { useAuthStore } from '../../../store/authStore'
-import { initAudio, playSfx } from '../../../lib/audio'
-import { classify, prettyHost, webSearchUrl, openDeviceFile } from '../../../lib/magicSearch'
 import { PAGE } from '../../../lib/pages'
+import MagicSearch from './MagicSearch'
 import styles from './EarthHero.module.css'
-
-function openExt(url) { window.open(url, '_blank', 'noopener,noreferrer') }
 
 // ── Geo helpers ───────────────────────────────────────────────────────────────
 function toVec3(lat, lon, r) {
@@ -252,124 +244,10 @@ function RealEarth() {
   )
 }
 
-// ── Voice-to-text (Web Speech API) ────────────────────────────────────────────
-function useVoiceInput(onText) {
-  const [listening, setListening] = useState(false)
-  const recRef = useRef(null)
-  const supported = typeof window !== 'undefined' &&
-    (window.SpeechRecognition || window.webkitSpeechRecognition)
-
-  useEffect(() => {
-    if (!supported) return
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
-    const rec = new SR()
-    rec.continuous = false
-    rec.interimResults = true
-    rec.lang = 'en-US'
-    rec.onresult = (e) => {
-      const text = Array.from(e.results).map(r => r[0].transcript).join('')
-      onText(text)
-    }
-    rec.onend = () => setListening(false)
-    rec.onerror = () => setListening(false)
-    recRef.current = rec
-    return () => { try { rec.abort() } catch { /* noop */ } }
-  }, [supported, onText])
-
-  function toggle() {
-    if (!supported || !recRef.current) return
-    if (listening) { recRef.current.stop(); setListening(false); return }
-    try { recRef.current.start(); setListening(true) } catch { /* already started */ }
-  }
-
-  return { supported: Boolean(supported), listening, toggle }
-}
-
 // ── Main component ────────────────────────────────────────────────────────────
 export default function EarthHero() {
   const currentPage    = useEarthStore(s => s.currentPage)
   const setCurrentPage = useEarthStore(s => s.setCurrentPage)
-  const openJarvisChat = useEarthStore(s => s.openJarvisChat)
-  const authAssets     = useAuthStore(s => s.assets)
-
-  const [query, setQuery] = useState('')
-  const voice = useVoiceInput(setQuery)
-  const inputRef = useRef(null)
-
-  const goJarvis = () => { setCurrentPage(null); openJarvisChat() }
-
-  // Apps: in-app pages + external web apps
-  const APPS = useMemo(() => [
-    { id: 'hdi',     label: 'HDI Profile',       desc: 'Your sovereign identity', Icon: Shield,        keys: 'hdi identity profile trust passport', run: () => setCurrentPage(PAGE.HDI) },
-    { id: 'world',   label: 'World Nations',     desc: 'Community & nations',      Icon: Users,         keys: 'world nations community citizens', run: () => setCurrentPage(PAGE.WORLD) },
-    { id: 'surface', label: 'Surface Workspace', desc: 'White workspace',          Icon: Monitor,       keys: 'surface workspace white apps build', run: () => setCurrentPage(PAGE.SURFACE) },
-    { id: 'earth',   label: 'Earth Surface Map', desc: 'Claim territory zones',    Icon: Globe2,        keys: 'earth surface map territory claim zone', run: () => setCurrentPage(PAGE.EARTH_SURFACE) },
-    { id: 'jarvis',  label: 'Ask Jarvis AI',     desc: 'Talk to your agent',       Icon: MessageCircle, keys: 'jarvis ai chat assistant ask', run: goJarvis },
-    { id: '0dot',    label: '0dot Identity',     desc: '0dot.in — claim your profile & domain', Icon: ExternalLink, keys: '0dot identity profile domain claim username site portfolio', run: () => openExt('https://0dot.in') },
-  ], [setCurrentPage]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Files: the user's HDI assets, searchable
-  const FILES = useMemo(() => {
-    const out = []
-    ;(authAssets?.documents   || []).forEach(d => out.push({ id: 'f-doc-'  + d.id, label: d.title || d.name || 'Document', desc: 'Document',   Icon: FileText, run: () => setCurrentPage(PAGE.HDI) }))
-    ;(authAssets?.credentials || []).forEach(c => out.push({ id: 'f-cred-' + c.id, label: c.name || 'Credential',         desc: 'Credential', Icon: Shield,   run: () => setCurrentPage(PAGE.HDI) }))
-    ;(authAssets?.domains     || []).forEach(d => out.push({ id: 'f-dom-'  + d.id, label: d.name,                          desc: 'Domain',     Icon: Globe,    run: () => d.name && openExt('https://' + d.name.replace(/^https?:\/\//, '')) }))
-    ;(authAssets?.wallets     || []).forEach(w => out.push({ id: 'f-wal-'  + w.id, label: w.label || w.address,            desc: 'Wallet',     Icon: Wallet,   run: () => setCurrentPage(PAGE.HDI) }))
-    return out
-  }, [authAssets, setCurrentPage])
-
-  // Dot commands — config-like shortcuts (type "." to list them all)
-  const DOT = useMemo(() => [
-    { name: 'profile',   label: 'Profile',       desc: 'Open HDI identity',       Icon: Shield,          run: () => setCurrentPage(PAGE.HDI) },
-    { name: 'dashboard', label: 'Dashboard',     desc: 'Solar system overview',   Icon: LayoutDashboard, run: () => setCurrentPage(null) },
-    { name: 'world',     label: 'World',         desc: 'Nations & community',     Icon: Users,           run: () => setCurrentPage(PAGE.WORLD) },
-    { name: 'surface',   label: 'Surface',       desc: 'White workspace',         Icon: Monitor,         run: () => setCurrentPage(PAGE.SURFACE) },
-    { name: 'earth',     label: 'Earth Surface', desc: 'Territory map',           Icon: Globe2,          run: () => setCurrentPage(PAGE.EARTH_SURFACE) },
-    { name: 'claim',     label: 'Claim',         desc: 'Claim territory',         Icon: MapPin,          run: () => setCurrentPage(PAGE.EARTH_SURFACE) },
-    { name: 'wallet',    label: 'Wallet',        desc: 'Wallet & assets in your HDI', Icon: Wallet,      run: () => setCurrentPage(PAGE.HDI) },
-    { name: '0dot',      label: '0dot Identity', desc: 'Claim your 0dot profile', Icon: ExternalLink,    run: () => openExt('https://0dot.in') },
-    { name: 'jarvis',    label: 'Jarvis',        desc: 'Ask the AI agent',        Icon: MessageCircle,   run: goJarvis },
-    { name: 'file',      label: 'File',          desc: 'Open a file from device', Icon: FolderOpen,      run: () => openDeviceFile() },
-    { name: 'web',       label: 'Web',           desc: 'Search the internet',     Icon: Globe,           run: () => openExt('https://duckduckgo.com') },
-    { name: 'help',      label: 'Help',          desc: 'List all . commands',     Icon: Hash,            run: () => setQuery('.') },
-  ], [setCurrentPage]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const results = useMemo(() => {
-    const c = classify(query)
-    if (c.mode === 'dot') {
-      return DOT
-        .filter(d => !c.term || d.name.startsWith(c.term) || d.label.toLowerCase().includes(c.term))
-        .map(d => ({ id: 'dot-' + d.name, label: d.label, desc: d.desc, Icon: d.Icon, badge: '.' + d.name, run: d.run }))
-    }
-    if (c.mode === 'url') {
-      return [{ id: 'url', label: `Open ${prettyHost(c.url)}`, desc: c.url, Icon: Globe, badge: 'WEB', run: () => openExt(c.url) }]
-    }
-    if (c.mode === 'search') {
-      const local = [...APPS, ...FILES].filter(x =>
-        (x.label + ' ' + (x.keys || '') + ' ' + (x.desc || '')).toLowerCase().includes(c.term)
-      )
-      const web = { id: 'web', label: `Search the web for “${c.raw}”`, desc: 'DuckDuckGo', Icon: Search, badge: 'WEB', run: () => openExt(webSearchUrl(c.raw)) }
-      return [...local, web]
-    }
-    return APPS // browse
-  }, [query, APPS, FILES, DOT])
-
-  function runResult(cmd) {
-    if (!cmd) return
-    initAudio(); playSfx('click')
-    cmd.run()
-  }
-
-  function handleSubmit(e) {
-    e.preventDefault()
-    runResult(results[0])
-  }
-
-  function handleMic() {
-    initAudio()
-    inputRef.current?.focus()
-    voice.toggle()
-  }
 
   return (
     <AnimatePresence>
@@ -404,66 +282,9 @@ export default function EarthHero() {
               </div>
             </section>
 
-            {/* Middle — Clean search (mobile-first) */}
+            {/* Middle — Magic Search command palette */}
             <section className={`${styles.section} ${styles.searchSection}`}>
-              <div className={styles.searchInner}>
-                <h1 className={styles.searchTitle}>Magic Search</h1>
-
-                <form className={styles.searchBox} onSubmit={handleSubmit}>
-                  <Search size={16} className={styles.searchIcon} aria-hidden="true" />
-                  <input
-                    ref={inputRef}
-                    className={styles.searchInput}
-                    type="text"
-                    value={query}
-                    onChange={e => setQuery(e.target.value)}
-                    placeholder="Search or type . for commands…"
-                    aria-label="Magic search"
-                    autoComplete="off"
-                    autoCapitalize="off"
-                    spellCheck="false"
-                  />
-                  {voice.supported && (
-                    <button
-                      type="button"
-                      className={`${styles.micBtn} ${voice.listening ? styles.micListening : ''}`}
-                      onClick={handleMic}
-                      aria-label={voice.listening ? 'Stop listening' : 'Speak'}
-                      aria-pressed={voice.listening}
-                    >
-                      <Mic size={15} />
-                    </button>
-                  )}
-                </form>
-
-                {voice.listening && <p className={styles.listeningHint}>Listening…</p>}
-
-                {/* Hints + results appear only once the user starts typing */}
-                {query.trim() && (
-                  <>
-                    <ul className={styles.results}>
-                      {results.map(cmd => (
-                        <li key={cmd.id}>
-                          <button className={styles.resultBtn} onClick={() => runResult(cmd)}>
-                            <span className={styles.resultIcon}><cmd.Icon size={15} /></span>
-                            <span className={styles.resultText}>
-                              <span className={styles.resultLabel}>{cmd.label}</span>
-                              <span className={styles.resultDesc}>{cmd.desc}</span>
-                            </span>
-                            {cmd.badge
-                              ? <span className={styles.resultBadge}>{cmd.badge}</span>
-                              : <ArrowRight size={13} className={styles.resultArrow} />}
-                          </button>
-                        </li>
-                      ))}
-                      {results.length === 0 && (
-                        <li className={styles.noResult}>No match for “{query}”.</li>
-                      )}
-                    </ul>
-                    <p className={styles.searchHint}>URL opens the site · keywords search web · <code>.</code> lists commands</p>
-                  </>
-                )}
-              </div>
+              <MagicSearch />
             </section>
 
             {/* Right — Real live Earth */}
