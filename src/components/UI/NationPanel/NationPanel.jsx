@@ -35,6 +35,96 @@ function fmtRPC(n) { return n.toLocaleString() + ' RPC' }
 function fmtCoord(lat, lng) {
   return `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? 'N' : 'S'} ${Math.abs(lng).toFixed(2)}°${lng >= 0 ? 'E' : 'W'}`
 }
+// Area of a circular zone of radius r km
+function zoneAreaKm2(r) { return Math.PI * r * r }
+function fmtArea(km2) {
+  if (km2 >= 1e6) return (km2 / 1e6).toFixed(1) + 'M km²'
+  if (km2 >= 1e3) return (km2 / 1e3).toFixed(0) + 'k km²'
+  return Math.round(km2) + ' km²'
+}
+
+/* ─────────────────── Mini territory map ─────────────────── */
+function MiniMap({ zones, capitalId }) {
+  const W = 320, H = 160
+  if (!zones.length) return <div className={styles.miniMapEmpty}>No territory claimed yet</div>
+
+  const lats = zones.map(z => z.lat)
+  const lngs = zones.map(z => z.lng)
+  let spanLng = Math.max((Math.max(...lngs) - Math.min(...lngs)) + 26, 44)
+  let spanLat = spanLng / 2
+  let cLng = (Math.min(...lngs) + Math.max(...lngs)) / 2
+  let cLat = (Math.min(...lats) + Math.max(...lats)) / 2
+  cLng = Math.max(-180 + spanLng / 2, Math.min(180 - spanLng / 2, cLng))
+  cLat = Math.max(-90 + spanLat / 2, Math.min(90 - spanLat / 2, cLat))
+
+  const left = cLng - spanLng / 2, top = cLat + spanLat / 2
+  const x = lng => ((lng - left) / spanLng) * W
+  const y = lat => ((top - lat) / spanLat) * H
+  const step = spanLng > 120 ? 30 : spanLng > 60 ? 15 : 10
+  const grid = (start, end) => { const a = []; for (let v = Math.ceil(start / step) * step; v <= end; v += step) a.push(v); return a }
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className={styles.miniMap} role="img" aria-label="Territory map" preserveAspectRatio="xMidYMid slice">
+      <rect width={W} height={H} fill="#070a16" />
+      {grid(left, left + spanLng).map(v => <line key={'x' + v} x1={x(v)} y1="0" x2={x(v)} y2={H} stroke="rgba(255,255,255,0.05)" />)}
+      {grid(cLat - spanLat / 2, cLat + spanLat / 2).map(v => (
+        <line key={'y' + v} x1="0" y1={y(v)} x2={W} y2={y(v)}
+          stroke={v === 0 ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.05)'} />
+      ))}
+      {zones.map(z => {
+        const cap = z.id === capitalId
+        return (
+          <g key={z.id}>
+            <circle cx={x(z.lng)} cy={y(z.lat)} r={Math.max(4, (z.radius / spanLng) * W * 0.9)}
+              fill={cap ? 'rgba(255,215,0,0.16)' : 'rgba(0,229,255,0.14)'}
+              stroke={cap ? '#FFD700' : '#00e5ff'} strokeWidth="1" />
+            <circle cx={x(z.lng)} cy={y(z.lat)} r="2" fill={cap ? '#FFD700' : '#00e5ff'} />
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
+/* ─────────────────── Treasury history chart ─────────────────── */
+function TreasuryChart({ txLog }) {
+  const chrono = [...txLog].reverse()
+  if (chrono.length < 2) return null
+  const pts = chrono.reduce((acc, t) => {
+    const prev = acc.length ? acc[acc.length - 1] : 0
+    acc.push(prev + (t.type === 'deposit' ? t.amount : -t.amount))
+    return acc
+  }, [])
+  const max = Math.max(...pts, 1)
+  const W = 320, H = 84, n = pts.length
+  const px = i => (i / (n - 1)) * W
+  const py = v => H - 4 - (v / max) * (H - 10)
+  const line = pts.map((v, i) => `${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(' ')
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className={styles.tChart} role="img" aria-label="Treasury balance over time" preserveAspectRatio="none">
+      <polygon points={`0,${H} ${line} ${W},${H}`} fill="rgba(255,215,0,0.10)" />
+      <polyline points={line} fill="none" stroke="#FFD700" strokeWidth="1.5" strokeLinejoin="round" />
+      {pts.map((v, i) => <circle key={i} cx={px(i)} cy={py(v)} r="2" fill="#FFD700" />)}
+    </svg>
+  )
+}
+
+/* ─────────────────── Stat strip ─────────────────── */
+function StatStrip({ items }) {
+  return (
+    <div className={`${styles.statRow} ${styles.statStrip}`}>
+      {items.map((s, i) => (
+        <div key={s.label} style={{ display: 'contents' }}>
+          <div className={styles.stat}>
+            <span className={styles.statNum}>{s.value}</span>
+            <span className={styles.statLbl}>{s.label}</span>
+          </div>
+          {i < items.length - 1 && <div className={styles.statDiv} />}
+        </div>
+      ))}
+    </div>
+  )
+}
 
 /* ─────────────────── OverviewTab ─────────────────── */
 function OverviewTab({ nation, isCitizen, userHdi, onJoin, onLeave }) {
@@ -85,31 +175,49 @@ function OverviewTab({ nation, isCitizen, userHdi, onJoin, onLeave }) {
 /* ─────────────────── TerritoryTab ─────────────────── */
 function TerritoryTab({ nation, zones }) {
   const nationZones = zones.filter(z => nation.zones.includes(z.id))
+  const totalArea = nationZones.reduce((t, z) => t + zoneAreaKm2(z.radius), 0)
+
   return (
     <div className={styles.tabContent}>
-      <div className={styles.zoneList}>
-        {nationZones.length === 0 && <p className={styles.empty}>No zones yet.</p>}
-        {nationZones.map(z => (
-          <div key={z.id} className={styles.zoneRow}>
-            <MapPin size={13} className={z.id === nation.capital_zone_id ? styles.capitalIcon : styles.zoneIcon} />
-            <div className={styles.zoneInfo}>
-              <span className={styles.zoneName}>{z.name}</span>
-              <span className={styles.zoneCoord}>{fmtCoord(z.lat, z.lng)} · r{z.radius}km</span>
+      <section className={styles.section}>
+        <MiniMap zones={nationZones} capitalId={nation.capital_zone_id} />
+      </section>
+
+      <StatStrip items={[
+        { label: 'Zones',    value: nationZones.length },
+        { label: 'Coverage', value: fmtArea(totalArea) },
+        { label: 'Citizens', value: nation.citizen_hids.length },
+      ]} />
+
+      <section className={styles.section}>
+        <h3 className={styles.sectionTitle}>Zones</h3>
+        <div className={styles.zoneList}>
+          {nationZones.length === 0 && <p className={styles.empty}>No zones yet. Claim territory on Earth and assign it to this nation.</p>}
+          {nationZones.map(z => (
+            <div key={z.id} className={styles.zoneRow}>
+              <MapPin size={13} className={z.id === nation.capital_zone_id ? styles.capitalIcon : styles.zoneIcon} />
+              <div className={styles.zoneInfo}>
+                <span className={styles.zoneName}>{z.name}</span>
+                <span className={styles.zoneCoord}>{fmtCoord(z.lat, z.lng)} · r{z.radius}km · {fmtArea(zoneAreaKm2(z.radius))}</span>
+              </div>
+              {z.id === nation.capital_zone_id && <span className={styles.capitalBadge}>Capital</span>}
             </div>
-            {z.id === nation.capital_zone_id && <span className={styles.capitalBadge}>Capital</span>}
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      </section>
     </div>
   )
 }
 
 /* ─────────────────── TreasuryTab ─────────────────── */
-function TreasuryTab({ nation, userHdi, isCitizen, spendRPC, depositTreasury, txLog }) {
+function TreasuryTab({ nation, userHdi, isCitizen, isFounder, spendRPC, earnRPC, depositTreasury, withdrawTreasury, txLog }) {
   const [amount, setAmount]       = useState('')
   const [note,   setNote]         = useState('')
   const [error,  setError]        = useState('')
   const [done,   setDone]         = useState(false)
+  const [wAmount, setWAmount]     = useState('')
+  const [wNote,   setWNote]       = useState('')
+  const [wError,  setWError]      = useState('')
   const [stats,  setStats]        = useState(null)
   const [statsErr, setStatsErr]   = useState(false)
   const [onchainBal, setOnchainBal] = useState(null)
@@ -164,7 +272,18 @@ function TreasuryTab({ nation, userHdi, isCitizen, spendRPC, depositTreasury, tx
     doneTimerRef.current = setTimeout(() => setDone(false), 2500)
   }
 
-  const nationTxLog = txLog.filter(t => t.nation_id === nation.id).slice(0, 20)
+  const nationTx    = txLog.filter(t => t.nation_id === nation.id)
+  const nationTxLog = nationTx.slice(0, 20)
+  const contributors = new Set(nationTx.filter(t => t.type === 'deposit').map(t => t.hid)).size
+
+  function withdraw() {
+    const amt = Number(wAmount)
+    if (!amt || amt <= 0) { setWError('Enter a valid amount.'); return }
+    if (amt > nation.treasury_balance) { setWError(`Treasury holds ${fmtRPC(nation.treasury_balance)}.`); return }
+    withdrawTreasury(nation.id, userHdi, amt, wNote.trim() || 'Withdrawal')
+    earnRPC?.(amt)
+    setWAmount(''); setWNote(''); setWError('')
+  }
 
   return (
     <div className={styles.tabContent}>
@@ -172,7 +291,28 @@ function TreasuryTab({ nation, userHdi, isCitizen, spendRPC, depositTreasury, tx
         <Coins size={22} className={styles.treasuryIcon} />
         <div className={styles.treasuryBalance}>{fmtRPC(nation.treasury_balance)}</div>
         <div className={styles.treasuryLbl}>National Treasury</div>
+        <TreasuryChart txLog={nationTx} />
       </div>
+
+      <StatStrip items={[
+        { label: 'Deposits',     value: nationTx.filter(t => t.type === 'deposit').length },
+        { label: 'Contributors', value: contributors },
+        { label: 'Transactions', value: nationTx.length },
+      ]} />
+
+      {isFounder && (
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>Withdraw (Founder)</h3>
+          <div className={styles.contributeRow}>
+            <input className={styles.input} type="number" min="1" placeholder="Amount (RPC)"
+              value={wAmount} onChange={e => { setWAmount(e.target.value); setWError('') }} />
+            <input className={styles.input} placeholder="Reason" value={wNote}
+              onChange={e => setWNote(e.target.value)} maxLength={60} />
+          </div>
+          {wError && <p className={styles.error}>{wError}</p>}
+          <button className={styles.btnContribute} onClick={withdraw}>Withdraw from Treasury</button>
+        </section>
+      )}
 
       {/* On-chain stats */}
       <section className={styles.section}>
@@ -326,6 +466,10 @@ function GovernanceTab({ nation, proposals, userHdi, isCitizen, createProposal, 
   const nationProps = proposals.filter(p => p.nation_id === nation.id)
   const open     = nationProps.filter(p => p.status === 'open')
   const finished = nationProps.filter(p => p.status !== 'open')
+  const passed   = finished.filter(p => p.status === 'passed').length
+  const voters   = new Set(nationProps.flatMap(p => [...p.votes_for, ...p.votes_against])).size
+  const turnout  = nation.citizen_hids.length
+    ? Math.round((voters / nation.citizen_hids.length) * 100) : 0
 
   function handleCreate() {
     if (!title.trim()) { setError('Proposal needs a title.'); return }
@@ -337,6 +481,14 @@ function GovernanceTab({ nation, proposals, userHdi, isCitizen, createProposal, 
 
   return (
     <div className={styles.tabContent}>
+      {nationProps.length > 0 && (
+        <StatStrip items={[
+          { label: 'Open',    value: open.length },
+          { label: 'Passed',  value: passed },
+          { label: 'Turnout', value: `${turnout}%` },
+        ]} />
+      )}
+
       {isCitizen && (
         <div className={styles.govActions}>
           <button className={styles.btnCreateProposal} onClick={() => setShowCreate(s => !s)}>
@@ -400,8 +552,21 @@ function DiplomacyTab({ nation, nations, isFounder, proposeAlliance, acceptAllia
   }
   function partnerFlag(id) { return nations.find(n => n.id === id)?.flag ?? '🌐' }
 
+  const activeAllies = alliances.filter(a => a.status === 'active').length
+  const activeTreaties = treaties.filter(t => t.status === 'active').length
+
   return (
     <div className={styles.tabContent}>
+      <StatStrip items={[
+        { label: 'Allies',    value: activeAllies },
+        { label: 'Treaties',  value: activeTreaties },
+        { label: 'Conflicts', value: conflicts.length },
+      ]} />
+
+      {otherNations.length === 0 && (
+        <p className={styles.empty}>Diplomacy opens up once another nation is founded.</p>
+      )}
+
       {/* Conflicts alert */}
       {conflicts.length > 0 && (
         <section className={styles.section}>
@@ -538,10 +703,12 @@ export default function NationPanel() {
   const setNationReturnPage = useEarthStore(s => s.setNationReturnPage)
   const user               = useAuthStore(s => s.user)
   const spendRPC           = useAuthStore(s => s.spendRPC)
+  const earnRPC            = useAuthStore(s => s.earnRPC)
   const nations            = useNationStore(s => s.nations)
   const joinNation         = useNationStore(s => s.joinNation)
   const leaveNation        = useNationStore(s => s.leaveNation)
   const depositTreasury    = useNationStore(s => s.depositTreasury)
+  const withdrawTreasury   = useNationStore(s => s.withdrawTreasury)
   const txLog              = useNationStore(s => s.txLog)
   const zones              = useTerritoryStore(s => s.zones)
   const proposals          = useGovernanceStore(s => s.proposals)
@@ -655,8 +822,11 @@ export default function NationPanel() {
                         nation={nation}
                         userHdi={userHdi}
                         isCitizen={isCitizen}
+                        isFounder={isFounder}
                         spendRPC={spendRPC}
+                        earnRPC={earnRPC}
                         depositTreasury={depositTreasury}
+                        withdrawTreasury={withdrawTreasury}
                         txLog={txLog}
                       />
                     )}
