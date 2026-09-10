@@ -171,13 +171,17 @@ function EarthPlanetGroup({ data }) {
         {isDevMode ? (
           <meshBasicMaterial color="#00ff41" wireframe />
         ) : (
+          /* meshStandardMaterial has no specularMap — passing one throws in
+             refreshMaterialUniforms every frame (only bit in day mode, where the
+             map is non-null). Use the specular texture as a metalnessMap so the
+             oceans still catch a sheen. */
           <meshStandardMaterial
             map={isDay ? dayMap : nightMap}
             normalMap={normalMap}
             normalScale={[0.85, 0.85]}
-            specularMap={isDay ? specularMap : null}
+            metalnessMap={isDay ? specularMap : null}
             roughness={isDay ? 0.65 : 1.0}
-            metalness={isDay ? 0.12 : 0.0}
+            metalness={isDay ? 0.35 : 0.0}
             dithering
           />
         )}
