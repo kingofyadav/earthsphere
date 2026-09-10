@@ -383,7 +383,8 @@ function GovernanceTab({ nation, proposals, userHdi, isCitizen, createProposal, 
 function DiplomacyTab({ nation, nations, isFounder, proposeAlliance, acceptAlliance, rejectAlliance, proposeTreaty, acceptTreaty, rejectTreaty, detectConflicts, resolveConflict, zones }) {
   const alliances = useRelationStore(s => s.alliances.filter(a => a.nation_a === nation.id || a.nation_b === nation.id))
   const treaties  = useRelationStore(s => s.treaties.filter(t => t.nation_a === nation.id || t.nation_b === nation.id))
-  const conflicts = useRelationStore(s => s.conflicts.filter(c => c.nation_a === nation.id || c.nation_b === nation.id))
+  const conflicts = useRelationStore(s => s.conflicts.filter(c =>
+    (c.nation_a === nation.id || c.nation_b === nation.id) && c.status !== 'resolved'))
   const [allyTarget, setAllyTarget]     = useState('')
   const [treatyTarget, setTreatyTarget] = useState('')
   const [treatyType, setTreatyType]     = useState('trade')

@@ -69,23 +69,30 @@ export const useRelationStore = create(
 
       detectConflicts: (zones) => {
         const fresh = []
+        const samePair = (c, a, b) =>
+          (c.zone_a === a && c.zone_b === b) || (c.zone_a === b && c.zone_b === a)
         for (let i = 0; i < zones.length; i++) {
           for (let j = i + 1; j < zones.length; j++) {
             const z1 = zones[i]; const z2 = zones[j]
             if (!z1.nation_id || !z2.nation_id || z1.nation_id === z2.nation_id) continue
             if (!zonesOverlap(z1, z2)) continue
-            const dup = get().conflicts.find(c =>
-              (c.zone_a === z1.id && c.zone_b === z2.id) ||
-              (c.zone_a === z2.id && c.zone_b === z1.id)
-            )
-            if (!dup) fresh.push({ id: genId('conflict'), nation_a: z1.nation_id, nation_b: z2.nation_id, zone_a: z1.id, zone_b: z2.id, detected_at: new Date().toISOString() })
+            // Skip a pair that's already tracked — active OR resolved, so
+            // resolving a conflict actually sticks instead of reappearing.
+            const dup = get().conflicts.find(c => samePair(c, z1.id, z2.id))
+            if (!dup) fresh.push({ id: genId('conflict'), nation_a: z1.nation_id, nation_b: z2.nation_id, zone_a: z1.id, zone_b: z2.id, detected_at: new Date().toISOString(), status: 'active' })
           }
         }
         if (fresh.length) set(s => ({ conflicts: [...s.conflicts, ...fresh] }))
         return fresh
       },
 
-      resolveConflict: (id) => set(s => ({ conflicts: s.conflicts.filter(c => c.id !== id) })),
+      // Mark resolved rather than delete — detectConflicts keeps skipping the
+      // pair, so it won't pop back up on the next zone change.
+      resolveConflict: (id) => set(s => ({
+        conflicts: s.conflicts.map(c =>
+          c.id === id ? { ...c, status: 'resolved', resolved_at: new Date().toISOString() } : c
+        ),
+      })),
 
       getAlliancesFor:  (nid) => get().alliances.filter(a => a.nation_a === nid || a.nation_b === nid),
       getTreatiesFor:  (nid) => get().treaties.filter(t => t.nation_a === nid || t.nation_b === nid),

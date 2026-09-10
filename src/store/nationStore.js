@@ -1,47 +1,26 @@
 import { create } from 'zustand'
 import { persist, devtools } from 'zustand/middleware'
+import { INDIA_NATION, INDIA_TX, SEED_FOUNDER_HID, mergeSeed } from '../data/seed'
 
 function genId(prefix) {
   return `${prefix}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 6)}`
 }
 
-// Founding nation. Seeded so the World hub is never empty — every other nation
-// is created by users through the Found-a-Nation flow.
-export const SEED_FOUNDER_HID = '@kingofyadav'
-export const INDIA_NATION = {
-  id:               'nation:seed:india',
-  name:             'India',
-  flag:             '🇮🇳',
-  capital_zone_id:  null,
-  zones:            [],
-  constitution:
-    'The Republic of India on the sovereign network — the founding nation of the Digital Earth. ' +
-    'Every verified citizen carries their HDI as a portable, self-sovereign passport.',
-  citizen_hids:     [SEED_FOUNDER_HID],
-  treasury_balance: 0,
-  founded_at:       '2026-01-01T00:00:00.000Z',
-  founder_hid:      SEED_FOUNDER_HID,
-  status:           'active',
-  seed:             true,
-}
+export { INDIA_NATION, SEED_FOUNDER_HID }
 
-// Ensure the seed nation is present exactly once, at the front of the list.
-function withSeed(nations = []) {
-  const rest = nations.filter(n => n.id !== INDIA_NATION.id)
-  const existing = nations.find(n => n.id === INDIA_NATION.id)
-  // Keep any user-accrued citizens/zones/treasury on the seed nation across reloads.
-  const india = existing
-    ? { ...INDIA_NATION, ...existing, name: INDIA_NATION.name, flag: INDIA_NATION.flag, seed: true }
-    : INDIA_NATION
-  return [india, ...rest]
-}
+// Seed the founding nation so the World hub is never empty; every other nation
+// is created by users through the Found-a-Nation flow. `mergeSeed` keeps live
+// citizens / zones / treasury but pins the seed's identity (name, flag, founder).
+const withNationSeed = (nations) =>
+  mergeSeed(nations, [INDIA_NATION], ['name', 'flag', 'founder_hid', 'seed'])
+const withTxSeed = (txLog) => mergeSeed(txLog, INDIA_TX, ['nation_id', 'ts', 'note'])
 
 export const useNationStore = create(
   devtools(
   persist(
     (set, get) => ({
-      nations: withSeed([]),
-      txLog:   [],
+      nations: withNationSeed([]),
+      txLog:   withTxSeed([]),
 
       foundNation: ({ name, flag, capital_zone_id, constitution, founder_hid }) => {
         const nation = {
@@ -119,18 +98,20 @@ export const useNationStore = create(
     }),
     {
       name: 'earthsphere-nations',
-      version: 1,
-      // Backfill the seed nation into stores persisted before it existed.
+      version: 2,
+      // Backfill the seed nation + its treasury history into older stores.
       migrate: (persisted) => {
         if (persisted && typeof persisted === 'object') {
-          persisted.nations = withSeed(persisted.nations || [])
+          persisted.nations = withNationSeed(persisted.nations || [])
+          persisted.txLog   = withTxSeed(persisted.txLog || [])
         }
         return persisted
       },
       merge: (persisted, current) => ({
         ...current,
         ...persisted,
-        nations: withSeed(persisted?.nations || current.nations),
+        nations: withNationSeed(persisted?.nations ?? current.nations),
+        txLog:   withTxSeed(persisted?.txLog ?? current.txLog),
       }),
     }
   ),
