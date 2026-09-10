@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, MapPin, ZoomIn, ZoomOut, Crosshair } from 'lucide-react'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useEarthStore } from '../../../store/earthStore'
 import { JARVIS_DNA } from '../../../data/jarvis.dna'
