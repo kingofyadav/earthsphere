@@ -363,6 +363,17 @@ export default function WorldPage() {
   const [mainTab, setMainTab] = useState('nations')
 
   const userHdi       = user?.hdi ?? null
+
+  // Make the signed-in user a citizen of the nation matching their profile
+  // country (e.g. India) — their country is theirs by default; others join by hand.
+  useEffect(() => {
+    if (!userHdi || !user?.country) return
+    const home = useNationStore.getState().nations.find(
+      n => n.status === 'active' && n.name.toLowerCase() === user.country.trim().toLowerCase(),
+    )
+    if (home && !home.citizen_hids.includes(userHdi)) joinNation(home.id, userHdi)
+  }, [userHdi, user?.country, joinNation])
+
   const activeNations = useMemo(() => nations.filter(n => n.status === 'active'), [nations])
   const totalCitizens = useMemo(() => nations.reduce((t, n) => t + n.citizen_hids.length, 0), [nations])
   const totalTreasury = useMemo(() => nations.reduce((t, n) => t + (n.treasury_balance ?? 0), 0), [nations])

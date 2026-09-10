@@ -5,11 +5,42 @@ function genId(prefix) {
   return `${prefix}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 6)}`
 }
 
+// Founding nation. Seeded so the World hub is never empty — every other nation
+// is created by users through the Found-a-Nation flow.
+export const SEED_FOUNDER_HID = '@kingofyadav'
+export const INDIA_NATION = {
+  id:               'nation:seed:india',
+  name:             'India',
+  flag:             '🇮🇳',
+  capital_zone_id:  null,
+  zones:            [],
+  constitution:
+    'The Republic of India on the sovereign network — the founding nation of the Digital Earth. ' +
+    'Every verified citizen carries their HDI as a portable, self-sovereign passport.',
+  citizen_hids:     [SEED_FOUNDER_HID],
+  treasury_balance: 0,
+  founded_at:       '2026-01-01T00:00:00.000Z',
+  founder_hid:      SEED_FOUNDER_HID,
+  status:           'active',
+  seed:             true,
+}
+
+// Ensure the seed nation is present exactly once, at the front of the list.
+function withSeed(nations = []) {
+  const rest = nations.filter(n => n.id !== INDIA_NATION.id)
+  const existing = nations.find(n => n.id === INDIA_NATION.id)
+  // Keep any user-accrued citizens/zones/treasury on the seed nation across reloads.
+  const india = existing
+    ? { ...INDIA_NATION, ...existing, name: INDIA_NATION.name, flag: INDIA_NATION.flag, seed: true }
+    : INDIA_NATION
+  return [india, ...rest]
+}
+
 export const useNationStore = create(
   devtools(
   persist(
     (set, get) => ({
-      nations: [],
+      nations: withSeed([]),
       txLog:   [],
 
       foundNation: ({ name, flag, capital_zone_id, constitution, founder_hid }) => {
@@ -86,7 +117,22 @@ export const useNationStore = create(
       getNationByZone:  (zone_id) => get().nations.find(n => n.zones.includes(zone_id)) ?? null,
       getTxLog:         (nation_id) => get().txLog.filter(t => t.nation_id === nation_id),
     }),
-    { name: 'earthsphere-nations' }
+    {
+      name: 'earthsphere-nations',
+      version: 1,
+      // Backfill the seed nation into stores persisted before it existed.
+      migrate: (persisted) => {
+        if (persisted && typeof persisted === 'object') {
+          persisted.nations = withSeed(persisted.nations || [])
+        }
+        return persisted
+      },
+      merge: (persisted, current) => ({
+        ...current,
+        ...persisted,
+        nations: withSeed(persisted?.nations || current.nations),
+      }),
+    }
   ),
   { name: 'NationStore' }
   )
