@@ -11,7 +11,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'logo/day-logo.png', 'logo/night-logo.png'],
+      includeAssets: ['favicon.ico', 'favicon-96.png', 'apple-touch-icon.png', 'logo/day-logo.png', 'logo/night-logo.png'],
       manifest: {
         name: 'EarthSphere — Digital World',
         short_name: 'EarthSphere',
