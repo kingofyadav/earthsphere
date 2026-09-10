@@ -152,29 +152,34 @@
   flex-shrink: 0;
 }
 
-/* Action pill (mirrors HDI copyBtn/profileBtn) */
+/* Found-a-Nation CTA — the primary user action in the hero, pushed to the row's end */
 .actionBtn {
   display: inline-flex;
   align-items: center;
-  gap: 0.32rem;
-  padding: 0.28rem 0.68rem;
-  background: rgba(255, 215, 0, 0.08);
-  border: 1px solid rgba(255, 215, 0, 0.25);
+  gap: 0.4rem;
+  margin-left: auto;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 215, 0, 0.12);
+  border: 1px solid rgba(255, 215, 0, 0.35);
   border-radius: 9999px;
-  color: rgba(255, 215, 0, 0.7);
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.07em;
+  color: #FFD700;
+  font-family: var(--font-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   cursor: pointer;
-  transition: all 0.18s;
+  transition: background 0.18s, border-color 0.18s, transform 0.12s;
   outline: none;
   flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
 }
 .actionBtn:hover {
-  background: rgba(255, 215, 0, 0.15);
-  border-color: rgba(255, 215, 0, 0.5);
-  color: #FFD700;
+  background: rgba(255, 215, 0, 0.2);
+  border-color: rgba(255, 215, 0, 0.6);
+  transform: translateY(-1px);
+}
+@media (max-width: 600px) {
+  .actionBtn { margin-left: 0; width: 100%; justify-content: center; }
 }
 
 /* ════════════════════════
@@ -425,14 +430,14 @@
 .cardStat { display: flex; align-items: center; gap: 0.25rem; }
 .dot { opacity: 0.4; }
 .cardConstitution { font-family: var(--font-primary); font-size: 0.78rem; color: rgba(255,255,255,0.42); line-height: 1.55; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.6rem 0.75rem; flex: 1; }
-.cardActions { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; border-top: 1px solid rgba(255,255,255,0.05); }
-.btnView { flex: 1; height: 34px; display: flex; align-items: center; justify-content: center; gap: 0.35rem; font-family: var(--font-primary); font-size: 0.8rem; font-weight: 600; color: #000; background: #FFD700; border: none; border-radius: 8px; cursor: pointer; outline: none; transition: opacity 0.15s; }
+.cardActions { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; padding: 0.75rem 1rem; border-top: 1px solid rgba(255,255,255,0.05); }
+.btnView { flex: 1 1 96px; height: 34px; display: flex; align-items: center; justify-content: center; gap: 0.35rem; font-family: var(--font-primary); font-size: 0.8rem; font-weight: 600; color: #000; background: #FFD700; border: none; border-radius: 8px; cursor: pointer; outline: none; transition: opacity 0.15s; }
 .btnView:hover { opacity: 0.88; }
-.btnJoin { height: 34px; padding: 0 0.9rem; display: flex; align-items: center; font-family: var(--font-primary); font-size: 0.8rem; font-weight: 500; color: #FFD700; background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.3); border-radius: 8px; cursor: pointer; outline: none; transition: all 0.15s; }
+.btnJoin { flex: 0 0 auto; height: 34px; padding: 0 0.9rem; display: flex; align-items: center; font-family: var(--font-primary); font-size: 0.8rem; font-weight: 500; color: #FFD700; background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.3); border-radius: 8px; cursor: pointer; outline: none; transition: all 0.15s; }
 .btnJoin:hover { background: rgba(255,215,0,0.18); }
-.btnLeave { height: 34px; padding: 0 0.9rem; display: flex; align-items: center; font-family: var(--font-primary); font-size: 0.8rem; color: rgba(255,107,107,0.7); background: rgba(255,107,107,0.06); border: 1px solid rgba(255,107,107,0.2); border-radius: 8px; cursor: pointer; outline: none; transition: all 0.15s; }
+.btnLeave { flex: 0 0 auto; height: 34px; padding: 0 0.9rem; display: flex; align-items: center; font-family: var(--font-primary); font-size: 0.8rem; color: rgba(255,107,107,0.7); background: rgba(255,107,107,0.06); border: 1px solid rgba(255,107,107,0.2); border-radius: 8px; cursor: pointer; outline: none; transition: all 0.15s; }
 .btnLeave:hover { color: #ff6b6b; border-color: rgba(255,107,107,0.4); }
-.memberBadge { font-family: var(--font-mono); font-size: 0.6rem; padding: 0.12rem 0.45rem; border-radius: 999px; background: rgba(255,215,0,0.1); color: #FFD700; border: 1px solid rgba(255,215,0,0.25); white-space: nowrap; }
+.memberBadge { align-self: center; font-family: var(--font-mono); font-size: 0.6rem; padding: 0.22rem 0.55rem; border-radius: 999px; background: rgba(255,215,0,0.1); color: #FFD700; border: 1px solid rgba(255,215,0,0.25); white-space: nowrap; }
 
 /* Empty state */
 .empty { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; padding: 4rem 2rem; text-align: center; }
