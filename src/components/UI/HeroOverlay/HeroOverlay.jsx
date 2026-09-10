@@ -16,6 +16,7 @@ const item = {
 export default function HeroOverlay() {
   const isLoaded    = useEarthStore(s => s.isLoaded)
   const appStage    = useEarthStore(s => s.appStage)
+  const currentPage = useEarthStore(s => s.currentPage)
   const setAppStage = useEarthStore(s => s.setAppStage)
   const setSceneBg  = useEarthStore(s => s.setSceneBg)
   const isLoggedIn  = useAuthStore(s => s.isLoggedIn)
@@ -37,7 +38,7 @@ export default function HeroOverlay() {
 
   return (
     <AnimatePresence>
-      {appStage === 'landing' && (
+      {appStage === 'landing' && !currentPage && (
         <motion.div
           className={styles.wrap}
           variants={container}

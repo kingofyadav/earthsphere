@@ -3,9 +3,9 @@
 ════════════════════════════════════════ */
 .overlay {
   position: fixed;
-  top: 66px; left: 0; right: 0; bottom: 0;
+  inset: 0;
   z-index: 50;
-  background: rgba(3,5,14,0.78);
+  background: #05070f;
   backdrop-filter: blur(32px) saturate(160%) brightness(0.85);
   -webkit-backdrop-filter: blur(32px) saturate(160%) brightness(0.85);
   overflow-y: auto; overflow-x: hidden;
@@ -34,18 +34,22 @@
 
 /* ── Tab bar ── */
 .tabBar {
-  display: flex; gap: 0.25rem; flex-wrap: wrap;
+  display: flex; gap: 0.25rem;
+  flex-wrap: nowrap; overflow-x: auto;
+  scrollbar-width: none;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 12px; padding: 0.25rem;
 }
+.tabBar::-webkit-scrollbar { display: none; }
 .tabBtn {
-  flex: 1; min-width: 100px; height: 36px;
+  flex: 1 0 auto; min-width: 92px; height: 36px;
   display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+  white-space: nowrap;
   font-family: var(--font-primary); font-size: 0.78rem; font-weight: 500;
   color: rgba(255,255,255,0.4);
   background: transparent; border: none; border-radius: 9px;
-  cursor: pointer; outline: none; transition: all 0.18s;
+  cursor: pointer; outline: none; transition: color 0.18s, background 0.18s;
 }
 .tabBtn:hover { color: rgba(255,255,255,0.75); }
 .tabActive {
@@ -451,7 +455,6 @@
 .btnPropose:hover { opacity: 0.88; }
 
 @media (max-width: 600px) {
-  .overlay { top: 58px; }
   .tabBtn  { font-size: 0.7rem; min-width: 70px; }
   .chainStats { grid-template-columns: repeat(2, 1fr); }
 }

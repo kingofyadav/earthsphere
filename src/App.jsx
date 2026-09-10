@@ -86,11 +86,13 @@ export default function App() {
   const isTouring          = useTourStore((s) => s.isTouring)
   const isLoggedIn         = useAuthStore((s) => s.isLoggedIn)
 
-  // Deep-link: ?nation=<id>
+  // Deep-link: ?nation=<id> — jump straight to the nation, past the landing hero
   useEffect(() => {
     const params   = new URLSearchParams(window.location.search)
     const nationId = params.get('nation')
     if (nationId) {
+      setAppStage('explore')
+      setSceneBg('off')
       setCurrentNationId(nationId)
       setCurrentPage(PAGE.NATION)
     }
