@@ -9,10 +9,16 @@ function genId(prefix) {
 export { INDIA_NATION, SEED_FOUNDER_HID }
 
 // Seed the founding nation so the World hub is never empty; every other nation
-// is created by users through the Found-a-Nation flow. `mergeSeed` keeps live
-// citizens / zones / treasury but pins the seed's identity (name, flag, founder).
+// is created by users through the Found-a-Nation flow. Identity fields are
+// pinned to the seed; the seed's zones/citizens are unioned in (so an earlier
+// build that persisted India with empty zones is repaired); capital + charter
+// are restored when the live row left them blank.
 const withNationSeed = (nations) =>
-  mergeSeed(nations, [INDIA_NATION], ['name', 'flag', 'founder_hid', 'seed'])
+  mergeSeed(nations, [INDIA_NATION], {
+    identity: ['name', 'flag', 'founder_hid', 'seed'],
+    union:    ['zones', 'citizen_hids'],
+    restore:  ['capital_zone_id', 'constitution'],
+  })
 const withTxSeed = (txLog) => mergeSeed(txLog, INDIA_TX, ['nation_id', 'ts', 'note'])
 
 export const useNationStore = create(
@@ -98,12 +104,22 @@ export const useNationStore = create(
     }),
     {
       name: 'earthsphere-nations',
-      version: 2,
+      version: 3,
       // Backfill the seed nation + its treasury history into older stores.
-      migrate: (persisted) => {
-        if (persisted && typeof persisted === 'object') {
-          persisted.nations = withNationSeed(persisted.nations || [])
-          persisted.txLog   = withTxSeed(persisted.txLog || [])
+      migrate: (persisted, fromVersion) => {
+        if (!persisted || typeof persisted !== 'object') return persisted
+        persisted.nations = withNationSeed(persisted.nations || [])
+        persisted.txLog   = withTxSeed(persisted.txLog || [])
+        // v2 persisted India before it had zones / a real treasury — realign
+        // the balance to its deposit history exactly once.
+        if (fromVersion < 3) {
+          persisted.nations = persisted.nations.map(n => {
+            if (n.id !== INDIA_NATION.id) return n
+            const deposits = persisted.txLog
+              .filter(t => t.nation_id === n.id)
+              .reduce((s, t) => s + (t.type === 'deposit' ? t.amount : -t.amount), 0)
+            return { ...n, treasury_balance: Math.max(n.treasury_balance || 0, deposits) }
+          })
         }
         return persisted
       },

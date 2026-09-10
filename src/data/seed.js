@@ -71,18 +71,30 @@ export const INDIA_PROPOSALS = [
 ]
 
 // Ensure `seeds` are present in `list` exactly once. A live row with the same id
-// wins for everything except the fields in `identity` (name/flag/etc), so
-// user-accrued data (citizens, votes, treasury) survives reloads while the seed
-// can't be renamed or orphaned.
-export function mergeSeed(list = [], seeds, identity = []) {
+// wins for everything except:
+//   identity  — always taken from the seed (name/flag/founder …)
+//   union     — array fields merged (seed values ∪ live values), so seed zones /
+//               citizens can't be lost even if an earlier build persisted them empty
+//   restore   — seed value used when the live one is null / '' / []
+// The third arg may be an array (shorthand for { identity }) or an options object.
+export function mergeSeed(list = [], seeds, opts = []) {
+  const { identity = [], union = [], restore = [] } = Array.isArray(opts) ? { identity: opts } : opts
+  const arr = Array.isArray(list) ? list : []
   const seedIds = new Set(seeds.map(s => s.id))
-  const rest = Array.isArray(list) ? list.filter(x => x && !seedIds.has(x.id)) : []
+  const rest = arr.filter(x => x && !seedIds.has(x.id))
   const merged = seeds.map(seed => {
-    const live = (Array.isArray(list) ? list : []).find(x => x && x.id === seed.id)
+    const live = arr.find(x => x && x.id === seed.id)
     if (!live) return seed
-    const pinned = {}
-    for (const k of identity) pinned[k] = seed[k]
-    return { ...seed, ...live, ...pinned }
+    const out = { ...seed, ...live }
+    for (const k of identity) out[k] = seed[k]
+    for (const k of union) {
+      out[k] = [...new Set([...(seed[k] || []), ...(Array.isArray(live[k]) ? live[k] : [])])]
+    }
+    for (const k of restore) {
+      const v = out[k]
+      if (v == null || v === '' || (Array.isArray(v) && v.length === 0)) out[k] = seed[k]
+    }
+    return out
   })
   // Live rows first (they're the newest for tx logs / feeds); seeds trail.
   return [...rest, ...merged]
