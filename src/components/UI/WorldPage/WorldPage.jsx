@@ -224,12 +224,16 @@ function NationCard({ nation, userHdi, onView, onJoin, onLeave }) {
         <button className={styles.btnView} onClick={() => onView(nation.id)}>
           <Globe size={13} /> View
         </button>
-        {userHdi && !isFounder && (
-          isCitizen
-            ? <button className={styles.btnLeave} onClick={() => onLeave(nation.id)}>Leave</button>
-            : <button className={styles.btnJoin}  onClick={() => onJoin(nation.id)}>Join</button>
+        {(isCitizen || (userHdi && !isFounder)) && (
+          <div className={styles.cardActionsSub}>
+            {userHdi && !isFounder && (
+              isCitizen
+                ? <button className={styles.btnLeave} onClick={() => onLeave(nation.id)}>Leave</button>
+                : <button className={styles.btnJoin} onClick={() => onJoin(nation.id)}>Join</button>
+            )}
+            {isCitizen && <span className={styles.memberBadge}>{isFounder ? 'Founder' : 'Citizen'}</span>}
+          </div>
         )}
-        {isCitizen && <span className={styles.memberBadge}>{isFounder ? 'Founder' : 'Citizen'}</span>}
       </div>
     </div>
   )
@@ -444,7 +448,7 @@ export default function WorldPage() {
                 {/* Nation count badge */}
                 <span className={styles.countBadge}>
                   <Globe size={11} />
-                  {activeNations.length} Nations
+                  {activeNations.length} {activeNations.length === 1 ? 'Nation' : 'Nations'}
                 </span>
 
                 {/* Found Nation action */}
