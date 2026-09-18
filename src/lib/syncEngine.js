@@ -1,19 +1,20 @@
 // Local-first auto-sync engine.
 //
-// Today it mirrors HDI/identity state across browser tabs in real time via
-// BroadcastChannel and reports a sync status to the store. The remote adapter
-// is a clean seam: drop a Supabase (or any) implementation into `remoteAdapter`
-// and the same push/pull flow syncs to the cloud — no call-site changes.
+// Mirrors non-auth app state (theme, current page, …) across browser tabs in
+// real time via BroadcastChannel. Auth/profile data no longer lives here —
+// it's Neon-backed via /api/profile (see authStore.js + useAuthBridge), and
+// cross-tab/cross-device consistency for it comes from the Clerk session
+// itself. The remote adapter below is a clean seam for this store's own
+// slice: drop a real implementation into `remoteAdapter` and the same
+// push/pull flow syncs it to the cloud too — no call-site changes.
 
 import { useEarthStore } from '../store/earthStore'
-import { useAuthStore } from '../store/authStore'
 
 const CHANNEL = 'earthsphere-sync'
 
 // Storage key → store hook. Only the partialized (persisted) slice of each store
 // is synced across tabs.
 const STORES = {
-  'earthsphere-auth':  useAuthStore,
   'earthsphere-earth': useEarthStore,
 }
 

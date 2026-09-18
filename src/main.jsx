@@ -1,7 +1,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { ClerkProvider } from '@clerk/react'
 import './styles/globals.css'
 import App from './App.jsx'
+
+const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+if (!CLERK_PUBLISHABLE_KEY) throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY')
 
 // Suppress THREE.Clock deprecation — @react-three/fiber v9.x uses Clock internally;
 // upstream fix pending. Remove once R3F upgrades to THREE.Timer.
@@ -13,7 +17,9 @@ console.warn = (...args) => {
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <App />
+    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+      <App />
+    </ClerkProvider>
   </StrictMode>,
 )
 

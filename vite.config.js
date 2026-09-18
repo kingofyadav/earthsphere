@@ -86,6 +86,9 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       '/api/rc': { target: 'http://localhost:9944', changeOrigin: true, rewrite: (p) => p.replace(/^\/api\/rc/, '/rpc') },
+      // Vercel Functions (api/*.js) aren't served by plain `vite dev` — run
+      // `vercel dev --listen 3210` alongside `pnpm dev` to exercise them locally.
+      '/api': { target: 'http://localhost:3210', changeOrigin: true },
     },
   },
   build: {

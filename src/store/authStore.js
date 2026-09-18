@@ -1,7 +1,6 @@
 import { create } from 'zustand'
-import { persist, createJSONStorage, devtools } from 'zustand/middleware'
-import { verifyPassword } from '../lib/crypto.js'
-import { secureStorage } from '../lib/securePersistStorage.js'
+import { devtools } from 'zustand/middleware'
+import { patchProfile } from '../lib/api.js'
 
 const DEF_PERMS  = { CAN_VIEW: true, CAN_VERIFY: true, CAN_TRANSFER: false, CAN_SHARE: false, CAN_RECOVER: false, CAN_CLAIM: false }
 const DEF_VERIF  = { email: false, phone: false, govId: false, employer: false, university: false, socialTrust: false }
@@ -36,29 +35,35 @@ export function generateHDI(name = '', phone = '', email = '') {
   return `@${first}${lastInitial}.${last4}`
 }
 
-function normalizeUser(user = {}) {
-  const email = user.email?.trim() || ''
-  const name = cleanName(user.name || deriveNameFromEmail(email))
-  const phone = user.phone || ''
-  return {
-    ...user,
-    name,
-    email,
-    phone,
-    country:    user.country?.trim() || 'India',
-    hdi:        user.hdi || generateHDI(name, phone, email),
-    rpcBalance: user.rpcBalance ?? 1000,
-    rcAddress:  user.rcAddress  ?? null,
-    createdAt:  user.createdAt || Date.now(),
+// ── Clerk bridge seam ────────────────────────────────────────────────
+// Real identity/session lives in Clerk; this store only holds the app-side
+// profile (Neon-backed via /api/profile). useAuthBridge() wires these in
+// once Clerk has loaded, so mutation actions below can persist server-side
+// without store code importing React hooks directly.
+let getTokenFn = null
+let signOutFn = null
+
+export function registerClerkBridge({ getToken, signOut }) {
+  getTokenFn = getToken
+  signOutFn = signOut
+}
+
+async function persistPatch(patch) {
+  if (!getTokenFn) return
+  try {
+    const token = await getTokenFn()
+    if (!token) return
+    await patchProfile(token, patch)
+  } catch {
+    // Best-effort — local state already applied optimistically; the next
+    // successful patch (or a fresh hydrate on reload) reconciles the server.
   }
 }
 
 export const useAuthStore = create(
   devtools(
-  persist(
     (set, get) => ({
-      isLoggedIn: false, user: null, savedUser: null, isLoginOpen: false, orbitHistory: [],
-      savedEmail: '', passwordHash: '',
+      isLoggedIn: false, user: null, isLoginOpen: false, orbitHistory: [],
       permissions:   { ...DEF_PERMS  },
       verifications: { ...DEF_VERIF  },
       recovery:      { ...DEF_REC    },
@@ -66,112 +71,126 @@ export const useAuthStore = create(
       assets:        { ...DEF_ASSETS },
       disclosure:    { ...DEF_DISC   },
 
-      // Called from genesis (new identity creation). userData may include passwordHash.
-      login: (userData) => set((s) => {
-        const { passwordHash: hash, ...rest } = userData
-        const prevUser = s.savedUser?.email === (rest.email || '').trim() ? s.savedUser : {}
-        const nextUser = normalizeUser({ ...prevUser, ...rest })
-        return {
-          isLoggedIn: true, user: nextUser, savedUser: nextUser, isLoginOpen: false,
-          savedEmail: nextUser.email || s.savedEmail,
-          passwordHash: hash || s.passwordHash,
-          verifications: { ...s.verifications, email: Boolean(nextUser.email), phone: Boolean(nextUser.phone) },
-        }
+      // Called by useAuthBridge once Clerk is signed in and /api/profile has
+      // been fetched-or-created for this user.
+      hydrate: (profile) => set({
+        isLoggedIn: true,
+        user: profile.user,
+        orbitHistory: profile.orbitHistory ?? [],
+        permissions:   { ...DEF_PERMS,  ...profile.permissions   },
+        verifications: { ...DEF_VERIF,  ...profile.verifications },
+        recovery:      { ...DEF_REC,    ...profile.recovery      },
+        relationships: profile.relationships ?? [],
+        assets:        { ...DEF_ASSETS, ...profile.assets        },
+        disclosure:    { ...DEF_DISC,   ...profile.disclosure    },
       }),
 
-      // Called from AuthModal (returning user login). Verifies PBKDF2 hash.
-      loginWithPassword: async (email, password) => {
-        const s = get()
-        if (!s.passwordHash) {
-          // No hash yet (legacy/demo session) — accept any password and restore saved profile
-          const user = s.savedUser || (s.savedEmail ? normalizeUser({ email: s.savedEmail }) : null)
-          set({ isLoggedIn: true, isLoginOpen: false, user })
-          return { ok: true }
-        }
-        if (s.savedEmail && email !== s.savedEmail) {
-          return { ok: false, error: 'Email not found.' }
-        }
-        const valid = await verifyPassword(password, s.passwordHash)
-        if (!valid) return { ok: false, error: 'Incorrect password.' }
-        set({ isLoggedIn: true, isLoginOpen: false, user: s.savedUser || normalizeUser({ email }) })
-        return { ok: true }
+      logout: () => {
+        signOutFn?.().catch(() => {})
+        set({
+          isLoggedIn: false, user: null,
+          permissions: { ...DEF_PERMS }, verifications: { ...DEF_VERIF },
+          recovery: { ...DEF_REC }, relationships: [], assets: { ...DEF_ASSETS }, disclosure: { ...DEF_DISC },
+        })
       },
-
-      logout: () => set({
-        isLoggedIn: false, user: null,
-        permissions: { ...DEF_PERMS }, verifications: { ...DEF_VERIF },
-        recovery: { ...DEF_REC }, relationships: [], assets: { ...DEF_ASSETS }, disclosure: { ...DEF_DISC },
-      }),
 
       openLoginModal:  () => set({ isLoginOpen: true }),
       closeLoginModal: () => set({ isLoginOpen: false }),
 
-      recordVisit: (planet) => set((s) => {
-        if (!s.isLoggedIn) return {}
-        const rest = s.orbitHistory.filter(v => v.planet !== planet)
-        return { orbitHistory: [{ planet, ts: Date.now() }, ...rest].slice(0, 50) }
-      }),
+      recordVisit: (planet) => {
+        if (!get().isLoggedIn) return
+        const rest = get().orbitHistory.filter(v => v.planet !== planet)
+        const orbitHistory = [{ planet, ts: Date.now() }, ...rest].slice(0, 50)
+        set({ orbitHistory })
+        persistPatch({ appState: { orbitHistory } })
+      },
 
-      /* sync existing sessions that predate verifications field */
-      syncVerifications: () => set((s) => {
-        const nextUser = s.user ? normalizeUser(s.user) : s.user
-        return {
-          user: nextUser,
-          verifications: {
-            ...s.verifications,
-            email: s.verifications.email || Boolean(nextUser?.email),
-            phone: s.verifications.phone || Boolean(nextUser?.phone),
-          },
+      syncVerifications: () => {
+        const s = get()
+        const verifications = {
+          ...s.verifications,
+          email: s.verifications.email || Boolean(s.user?.email),
+          phone: s.verifications.phone || Boolean(s.user?.phone),
         }
-      }),
+        set({ verifications })
+        persistPatch({ appState: { verifications } })
+      },
 
-      /* Phase 2 */
-      addVerification: (key) => set(s => ({ verifications: { ...s.verifications, [key]: true } })),
+      addVerification: (key) => {
+        const verifications = { ...get().verifications, [key]: true }
+        set({ verifications })
+        persistPatch({ appState: { verifications } })
+      },
 
-      /* Phase 3 */
-      togglePermission: (key) => set(s => ({ permissions: { ...s.permissions, [key]: !s.permissions[key] } })),
+      togglePermission: (key) => {
+        const permissions = { ...get().permissions, [key]: !get().permissions[key] }
+        set({ permissions })
+        persistPatch({ appState: { permissions } })
+      },
 
-      /* Phase 4 */
-      setRecovery:   (type, data) => set(s => ({ recovery: { ...s.recovery, [type]: data } })),
-      clearRecovery: (type)       => set(s => ({ recovery: { ...s.recovery, [type]: null } })),
+      setRecovery: (type, data) => {
+        const recovery = { ...get().recovery, [type]: data }
+        set({ recovery })
+        persistPatch({ appState: { recovery } })
+      },
+      clearRecovery: (type) => {
+        const recovery = { ...get().recovery, [type]: null }
+        set({ recovery })
+        persistPatch({ appState: { recovery } })
+      },
 
-      /* Phase 5 */
-      addRelationship:    (rel) => set(s => ({ relationships: [...s.relationships, { ...rel, id: Date.now().toString(36), ts: Date.now() }] })),
-      removeRelationship: (id)  => set(s => ({ relationships: s.relationships.filter(r => r.id !== id) })),
+      addRelationship: (rel) => {
+        const relationships = [...get().relationships, { ...rel, id: Date.now().toString(36), ts: Date.now() }]
+        set({ relationships })
+        persistPatch({ appState: { relationships } })
+      },
+      removeRelationship: (id) => {
+        const relationships = get().relationships.filter(r => r.id !== id)
+        set({ relationships })
+        persistPatch({ appState: { relationships } })
+      },
 
-      /* Phase 6 */
-      addAsset:    (type, data) => set(s => ({ assets: { ...s.assets, [type]: [...(s.assets[type] || []), { ...data, id: Date.now().toString(36), ts: Date.now() }] } })),
-      removeAsset: (type, id)   => set(s => ({ assets: { ...s.assets, [type]: (s.assets[type] || []).filter(a => a.id !== id) } })),
+      addAsset: (type, data) => {
+        const assets = { ...get().assets, [type]: [...(get().assets[type] || []), { ...data, id: Date.now().toString(36), ts: Date.now() }] }
+        set({ assets })
+        persistPatch({ appState: { assets } })
+      },
+      removeAsset: (type, id) => {
+        const assets = { ...get().assets, [type]: (get().assets[type] || []).filter(a => a.id !== id) }
+        set({ assets })
+        persistPatch({ appState: { assets } })
+      },
 
-      /* Phase 7 */
-      toggleDisclosure: (key) => set(s => ({ disclosure: { ...s.disclosure, [key]: !s.disclosure[key] } })),
+      toggleDisclosure: (key) => {
+        const disclosure = { ...get().disclosure, [key]: !get().disclosure[key] }
+        set({ disclosure })
+        persistPatch({ appState: { disclosure } })
+      },
 
       /* RPC economy */
-      earnRPC:  (amount) => set(s => ({ user: s.user ? { ...s.user, rpcBalance: (s.user.rpcBalance ?? 0) + amount } : s.user })),
-      spendRPC: (amount) => set(s => {
-        if (!s.user || (s.user.rpcBalance ?? 0) < amount) return {}
-        return { user: { ...s.user, rpcBalance: s.user.rpcBalance - amount } }
-      }),
+      earnRPC: (amount) => {
+        const s = get()
+        if (!s.user) return
+        const rpcBalance = (s.user.rpcBalance ?? 0) + amount
+        set({ user: { ...s.user, rpcBalance } })
+        persistPatch({ rpcBalance })
+      },
+      spendRPC: (amount) => {
+        const s = get()
+        if (!s.user || (s.user.rpcBalance ?? 0) < amount) return
+        const rpcBalance = s.user.rpcBalance - amount
+        set({ user: { ...s.user, rpcBalance } })
+        persistPatch({ rpcBalance })
+      },
 
       /* On-chain wallet address (RupeeCoin) */
-      setRcAddress: (address) => set(s => ({ user: s.user ? { ...s.user, rcAddress: address } : s.user })),
+      setRcAddress: (address) => {
+        const s = get()
+        if (!s.user) return
+        set({ user: { ...s.user, rcAddress: address } })
+        persistPatch({ rcAddress: address })
+      },
     }),
-    {
-      name: 'earthsphere-auth',
-      // secureStorage is a string-based StateStorage (AES-GCM encrypt/decrypt).
-      // It MUST be wrapped so persist serialises the {state, version} envelope to
-      // JSON before encrypting — passing it raw stores "[object Object]" and the
-      // session silently fails to rehydrate (appears logged out on every reload).
-      storage: createJSONStorage(() => secureStorage),
-      partialize: s => ({
-        isLoggedIn: s.isLoggedIn, user: s.user, savedUser: s.savedUser,
-        savedEmail: s.savedEmail, passwordHash: s.passwordHash,
-        orbitHistory: s.orbitHistory, permissions: s.permissions,
-        verifications: s.verifications, recovery: s.recovery,
-        relationships: s.relationships, assets: s.assets, disclosure: s.disclosure,
-      }),
-    }
-  ),
-  { name: 'AuthStore' }
+    { name: 'AuthStore' }
   )
 )

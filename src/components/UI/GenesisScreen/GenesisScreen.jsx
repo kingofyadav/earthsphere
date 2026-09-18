@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { User, Phone, Mail, Lock, Eye, EyeOff, ArrowLeft, MapPin } from 'lucide-react'
+import { User, Phone, Mail, Lock, Eye, EyeOff, ArrowLeft, MapPin, ShieldCheck } from 'lucide-react'
+import { useSignUp } from '@clerk/react'
 import { useAuthStore, generateHDI } from '../../../store/authStore'
 import { useEarthStore } from '../../../store/earthStore'
-import { hashPassword } from '../../../lib/crypto'
 import styles from './GenesisScreen.module.css'
 
 const slide = {
@@ -25,7 +25,7 @@ export default function GenesisScreen() {
   const appStage    = useEarthStore(s => s.appStage)
   const setAppStage = useEarthStore(s => s.setAppStage)
   const setSceneBg  = useEarthStore(s => s.setSceneBg)
-  const login       = useAuthStore(s => s.login)
+  const { signUp }  = useSignUp()
 
   const [step,     setStep]     = useState('identity')
   const [name,     setName]     = useState('')
@@ -34,8 +34,10 @@ export default function GenesisScreen() {
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
   const [confirm,  setConfirm]  = useState('')
+  const [code,     setCode]     = useState('')
   const [showPw,   setShowPw]   = useState(false)
   const [error,    setError]    = useState('')
+  const [loading,  setLoading]  = useState(false)
   const [mintedHdi, setMintedHdi] = useState('')
 
   const liveHdi = useMemo(() => {
@@ -53,13 +55,14 @@ export default function GenesisScreen() {
   const hdiReady = !liveHdi.includes('_')
 
   function goBack() {
-    if (step === 'secure') { setStep('identity'); setError('') }
+    if (step === 'verify') { setStep('secure'); setError('') }
+    else if (step === 'secure') { setStep('identity'); setError('') }
     else { setAppStage('landing'); resetForm() }
   }
 
   function resetForm() {
     setStep('identity'); setName(''); setPhone(''); setCountry('India'); setEmail('')
-    setPassword(''); setConfirm(''); setError(''); setShowPw(false)
+    setPassword(''); setConfirm(''); setCode(''); setError(''); setShowPw(false); setLoading(false)
   }
 
   function handleIdentityNext(e) {
@@ -75,15 +78,50 @@ export default function GenesisScreen() {
     if (!email || !password)     { setError('Fill in all fields.'); return }
     if (password !== confirm)    { setError('Passwords do not match.'); return }
     if (password.length < 6)     { setError('Password must be at least 6 characters.'); return }
-    setError('')
+    if (!signUp)                 { setError('Still loading — try again in a moment.'); return }
+    setError(''); setLoading(true)
+
+    const { error: err } = await signUp.password({ emailAddress: email, password })
+    if (err) { setLoading(false); setError(err.message || 'Could not create your identity.'); return }
+
+    // Stash the name/phone/country the genesis wizard collected as metadata
+    // rather than Clerk's first-class name/phoneNumber fields — those require
+    // Dashboard-side name collection to be enabled and phoneNumber triggers
+    // its own verification flow, neither of which this app wants. We only
+    // verify email here; useAuthBridge reads these back off the Clerk user
+    // to seed the Neon profile row.
+    await signUp.update({ unsafeMetadata: { name: name.trim(), phone, country: country.trim() } })
+
+    if (signUp.status === 'complete') { setLoading(false); await finishSignUp(); return }
+    if (signUp.status === 'missing_requirements' && signUp.unverifiedFields?.includes('email_address')) {
+      await signUp.verifications.sendEmailCode()
+      setLoading(false)
+      setStep('verify')
+      return
+    }
+    setLoading(false)
+    setError('Could not complete sign-up.')
+  }
+
+  async function handleVerify(e) {
+    e.preventDefault()
+    if (!code) { setError('Enter the code from your email.'); return }
+    setError(''); setLoading(true)
+    const { error: err } = await signUp.verifications.verifyEmailCode({ code })
+    setLoading(false)
+    if (err) { setError(err.message || 'Invalid code.'); return }
+    if (signUp.status === 'complete') { await finishSignUp(); return }
+    setError('Verification incomplete — try again.')
+  }
+
+  async function finishSignUp() {
     const hdi = generateHDI(name, phone, email)
     setMintedHdi(hdi)
     setStep('minting')
-    const [, passwordHash] = await Promise.all([
+    await Promise.all([
       new Promise(r => setTimeout(r, 1800)),
-      hashPassword(password),
+      signUp.finalize({ navigate: async () => {} }),
     ])
-    login({ name, phone, country: country.trim(), email, hdi, passwordHash, createdAt: Date.now() })
     setStep('complete')
   }
 
@@ -110,7 +148,7 @@ export default function GenesisScreen() {
           {step !== 'minting' && step !== 'complete' && (
             <button className={styles.backBtn} onClick={goBack}>
               <ArrowLeft size={13} />
-              {step === 'secure' ? 'Back' : 'Cancel'}
+              {step === 'secure' || step === 'verify' ? 'Back' : 'Cancel'}
             </button>
           )}
           <p className={styles.eyebrow}>HUMAN DIGITAL IDENTITY PROTOCOL · v0.1</p>
@@ -225,8 +263,48 @@ export default function GenesisScreen() {
                   </div>
                 </Field>
                 {error && <p className={styles.error}>{error}</p>}
-                <button type="submit" className={styles.submit}>Create My Identity →</button>
+                {/* Clerk's bot sign-up protection renders into this element. */}
+                <div id="clerk-captcha" />
+                <button type="submit" className={styles.submit} disabled={loading}>
+                  {loading ? 'Creating…' : 'Create My Identity →'}
+                </button>
               </form>
+            </motion.div>
+          )}
+
+          {/* ── STEP 2b: Verify email ── */}
+          {step === 'verify' && (
+            <motion.div key="verify" className={styles.card} {...slide}>
+              <div className={styles.cardHead}>
+                <div className={styles.stepOrb} aria-hidden="true"><ShieldCheck size={18} /></div>
+                <h2 className={styles.cardTitle}>Check your email</h2>
+                <p className={styles.cardSub}>
+                  Enter the code we sent to <span className={styles.hdiInline}>{email}</span>
+                </p>
+              </div>
+
+              <form className={styles.form} onSubmit={handleVerify} noValidate>
+                <Field id="g-code" label="Verification code">
+                  <div className={styles.inputWrap}>
+                    <ShieldCheck size={15} className={styles.inputIcon} />
+                    <input id="g-code" className={styles.input} type="text" inputMode="numeric"
+                      placeholder="123456" autoComplete="one-time-code" autoFocus
+                      value={code} onChange={e => setCode(e.target.value)} />
+                  </div>
+                </Field>
+                {error && <p className={styles.error}>{error}</p>}
+                <button type="submit" className={styles.submit} disabled={loading}>
+                  {loading ? 'Verifying…' : 'Verify →'}
+                </button>
+              </form>
+
+              <p className={styles.footNote}>
+                Didn&rsquo;t get it?{' '}
+                <button className={styles.footLink} type="button"
+                  onClick={() => signUp.verifications.sendEmailCode()}>
+                  Resend code
+                </button>
+              </p>
             </motion.div>
           )}
 

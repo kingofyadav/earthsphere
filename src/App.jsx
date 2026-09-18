@@ -3,6 +3,7 @@ import { useThemeMode } from './hooks/useThemeMode'
 import { useDevMode } from './hooks/useDevMode'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useSystemsBridge } from './hooks/useSystemsBridge'
+import { useAuthBridge } from './hooks/useAuthBridge'
 import Header from './components/UI/Header/Header'
 import LoadingScreen from './components/UI/LoadingScreen/LoadingScreen'
 import LightSpeed from './components/UI/LightSpeed/LightSpeed'
@@ -71,6 +72,7 @@ export default function App() {
   useDevMode()
   useKeyboardShortcuts()
   useSystemsBridge()
+  useAuthBridge()
 
   const setCurrentNationId = useEarthStore((s) => s.setCurrentNationId)
   const setCurrentPage     = useEarthStore((s) => s.setCurrentPage)

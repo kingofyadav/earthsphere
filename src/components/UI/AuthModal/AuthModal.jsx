@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Eye, EyeOff, Mail, Lock } from 'lucide-react'
 import FocusTrap from 'focus-trap-react'
+import { useSignIn } from '@clerk/react'
 import { useAuthStore } from '../../../store/authStore'
 import { useEarthStore } from '../../../store/earthStore'
 import styles from './AuthModal.module.css'
@@ -22,8 +23,8 @@ const GithubIcon = () => (
 )
 
 export default function AuthModal() {
+  const { signIn } = useSignIn()
   const isLoginOpen       = useAuthStore(s => s.isLoginOpen)
-  const loginWithPassword = useAuthStore(s => s.loginWithPassword)
   const closeLoginModal   = useAuthStore(s => s.closeLoginModal)
   const appStage          = useEarthStore(s => s.appStage)
   const setAppStage       = useEarthStore(s => s.setAppStage)
@@ -56,11 +57,23 @@ export default function AuthModal() {
   async function handleSubmit(e) {
     e.preventDefault()
     if (!email || !password) { setError('Please fill in all fields.'); return }
+    if (!signIn) { setError('Still loading — try again in a moment.'); return }
     setError(''); setLoading(true)
-    const result = await loginWithPassword(email, password)
+    const { error: err } = await signIn.password({ identifier: email, password })
+    if (err) {
+      setLoading(false)
+      setError(err.message || 'Sign in failed.')
+      return
+    }
+    if (signIn.status === 'complete') {
+      await signIn.finalize({ navigate: async () => {} })
+      setLoading(false)
+      afterLogin()
+      return
+    }
+    // MFA / new-device trust isn't wired up on this custom form yet.
     setLoading(false)
-    if (!result.ok) { setError(result.error || 'Sign in failed.'); return }
-    afterLogin()
+    setError('This account needs extra verification that isn’t supported here yet.')
   }
 
   function handleSocial() {
